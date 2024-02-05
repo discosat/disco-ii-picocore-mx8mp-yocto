@@ -1,0 +1,1 @@
+# disco-ii-picocore-mx8mp-yocto
