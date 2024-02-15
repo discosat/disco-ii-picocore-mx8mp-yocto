@@ -1,0 +1,397 @@
+#!/bin/bash
+#
+
+# Abbort script on command failure
+set -e
+
+VERSION=1.0
+YOCTO_MANIFEST="fs-release-manifest.xml"
+
+RELEASE=$(grep '<release' "${YOCTO_MANIFEST}"| grep -Po 'version="\K.*?(?=")')
+
+YOCTO_DOWNLOAD_URL="https://github.com/FSEmbedded/releases-fus"
+YOCTO_BRANCH="main"
+
+
+UBOOT_FUS_BBAPPEND="u-boot-fus.bbappend"
+LINUX_FUS_BBAPPEND="linux-fus.bbappend"
+WORKDIR=$(pwd)
+
+EXAMPLES_DIR=examples-fus
+LINUX_DIR=linux-fus
+UBOOT_DIR=u-boot-fus
+YOCTO_DIR=yocto-fus
+META_FUS_DIR=sources/meta-fus/
+KERNEL_PATH=recipes-kernel/linux/
+UBOOT_PATH=recipes-bsp/u-boot/
+DL_DIR="downloads"
+
+# Parse line with $1 and echo the value of $2 from manifest $3
+parse_xml_value()
+{
+	entry=$1
+	value=$2
+	manifest=$3
+
+	result=$(grep "path=\"${entry}\"" "${manifest}"| grep -Po "${value}=\"\K.*?(?=\")")
+
+	echo $result
+}
+
+LINUX_FUS_COMMIT=$(parse_xml_value "linux-fus" "revision" "${YOCTO_MANIFEST}")
+LINUX_FUS_BRANCH=$(parse_xml_value "linux-fus" "upstream" "${YOCTO_MANIFEST}")
+
+UBOOT_FUS_COMMIT=$(parse_xml_value "u-boot-fus" "revision" "${YOCTO_MANIFEST}")
+UBOOT_FUS_BRANCH=$(parse_xml_value "u-boot-fus" "upstream" "${YOCTO_MANIFEST}")
+
+UBOOT_SRC_URI="git://\${DL_DIR}/$UBOOT_DIR;branch=$UBOOT_FUS_BRANCH;protocol=file"
+LINUX_SRC_URI="git://\${DL_DIR}/$LINUX_DIR;branch=$LINUX_FUS_BRANCH;protocol=file"
+
+
+# ----- Helper functions ------------------------------------------------------
+
+# Show usage on error
+show_usage()
+{
+    echo
+    echo "Usage: $0 [options] <target>"
+    echo
+    echo "Extract the sources (u-boot, linux, yocto, examples) to directory"
+    echo "<target>. If a dl directory is available in the release, also copy"
+    echo "the extra packages in it to the download directory."
+    echo
+    echo "Options:"
+    echo "-r | --release <release>"
+    echo "                Use given <release> directory to locate sources"
+    echo "                (default: directory where this script is located)"
+    echo "-d | --dl <dl>  Use <dl> directory as Yocto download directory"
+    echo "                (default: \$DL_DIR or 'downloads' in Yocto's top dir)"
+    echo "-f | --force    Force installation, overwrite files in directories"
+    echo "                <target> and <dl> if they exist; be careful!"
+    echo "-n | --dry-run  Show what would be done, do not change anything"
+    echo "-h | --help     Show this help"
+    echo
+    exit 1
+}
+
+# If force is on, delete $1 and show type, otherwise just show existing name
+do_delete()
+{
+    if [ $force == 1 ] ; then
+	if [ -L "$1" ] ; then
+	    echo "  [DELETE SYMLINK  ] $1"
+	    $run /bin/rm -f "$1"
+	elif [ -d "$1" ] ; then
+	    echo "  [DELETE DIRECTORY] $1"
+	    $run /bin/rm -rf "$1"
+	else
+	    echo "  [DELETE FILE     ] $1"
+	    $run /bin/rm -f "$1"
+	fi
+    else
+	stop=1
+	if [ -L "$1" ] ; then
+	    echo "Symlink already exists:   $1"
+	elif [ -d "$1" ] ; then
+	    echo "Directory already exists: $1"
+	else
+	    echo "File already exists:      $1"
+	fi
+    fi
+}
+
+# Create directory $1
+do_mkdir()
+{
+    echo "  [CREATE DIRECTORY] $1"
+	echo
+    $run /bin/mkdir -p "$1"
+}
+
+# Extract $1 to directory $2
+do_extract()
+{
+    echo "  [EXTRACT ARCHIVE ] $1"
+    echo "  [TO              ] $2"
+	echo
+    $run /bin/tar xf "$1" -C "$2"
+}
+
+
+do_set_git_credentials()
+{
+	echo "  [GIT CREDENTIALS]"
+
+    if ! git config --global user.name
+	then
+		$run read -p "Please enter the user name that should be used for git: " username
+		$run git config --global user.name "$username"
+	fi
+
+	if ! git config --global user.email
+	then
+		$run read -p "Please enter the email that should be used for git: " email
+		$run git config --global user.email "$email"
+	fi
+	
+}
+# Clone git from $1 to directory $2
+# Check out branch $3 commit $4
+do_clone_checkout()
+{
+    echo "  [CLONING GIT ] $1"
+    echo "  [TO          ] $2"
+    $run git clone "$1" "$2"
+	echo "  [CHECKING OUT] $3 $4"
+	echo
+	$run cd "$2"
+	existed_in_local=$(git branch --list $3)
+	if [ -z "$existed_in_local" ]; then
+		$run git checkout --track origin/$3
+	fi
+	$run git checkout "$4"
+	$run cd -
+}
+
+# Copy $1 to $2
+do_copy()
+{
+    echo "  [COPY PACKAGE    ] $1"
+    echo "  [TO              ] $2"
+	echo
+    $run /bin/cp -f "$1" "$2"
+}
+
+# Create symlink $1 to point to $2
+do_symlink()
+{
+    echo "  [CREATE SYMLINK  ] $1"
+    echo "  [TO POINT TO     ] $2"
+	echo
+    $run /bin/ln -s "$2" "$1"
+}
+
+# Write SRC_URI $1 and SRCREV $2 to bbappend at $3
+do_write_bbappend()
+{
+	if [ "$#" -eq 2 ]; then
+		echo "  [CREATING 		] $2"
+		echo "  [FROM 			] $1"
+		$run cp -f $1 $2
+	elif [ "$#" -eq 3 ]; then
+		echo "  [CREATING 		] $3"
+		echo "  [SRC_URI  		] $1"
+		echo "  [SRCREV  		] $2"
+		echo
+		if [ "$run" != ":" ] ; then
+			echo "SRC_URI = \"${1}\"" > $3
+			echo "SRCREV = \"${2}\"" >> $3
+		fi
+	else
+		echo "write_bbappend failed"
+	fi
+
+}
+
+# Write SRC_URI $1 and SRCREV $2 to bbappend at $3
+do_yocto_download()
+{
+
+    echo "  [DOWNOAD MANIFEST] $YOCTO_MANIFEST"
+    echo "  [FROM            ] $YOCTO_DOWNLOAD_URL"
+	echo "  [TAG          ] $RELEASE"
+	echo
+
+	# Create yocto directory if it does not exist yet
+	if [ ! -d "$YOCTO_DIR" ] ; then
+		$run do_mkdir "$YOCTO_DIR"
+	fi
+	#$run cd $YOCTO_DIR
+	# Download Yocto
+	# Download the repo tool that handles the download of several GIT repos
+	if [ ! -x ./repo ]
+	then
+		$run echo "Downloading repo tool"
+		$run curl http://commondatastorage.googleapis.com/git-repo-downloads/repo > repo
+		$run chmod a+x repo
+	fi
+
+	# Fakeinit repo so we can copy our local manifest
+	$run echo "Getting download information (repo init)"
+	$run ./repo init -u $YOCTO_DOWNLOAD_URL -b $YOCTO_BRANCH -m $YOCTO_MANIFEST
+	$run cp $WORKDIR/$YOCTO_MANIFEST .repo/manifests/
+
+	# Download the GIT repositories:
+	$run echo "Downloading all Yocto packages (repo sync)"
+	$run ./repo sync -m $YOCTO_MANIFEST
+
+	# Create local branches so Yocto can find the commits
+	$run ./repo start $LINUX_FUS_BRANCH $LINUX_DIR
+	$run ./repo start $UBOOT_FUS_BRANCH $UBOOT_DIR
+}
+
+# ----- Parse arguments -------------------------------------------------------
+
+force=0
+run=
+TARGET=
+
+while [ $# -gt 0 ] ; do
+    case "${1,,}" in
+	-r|--release)
+	    if [ -z "$2" ] ; then
+		echo
+		echo "ERROR: Option '$1' needs a path parameter"
+		show_usage
+	    fi
+	    RELEASE="$2"
+	    shift 2
+	    ;;
+	-d|--dl)
+	    if [ -z "$2" ] ; then
+		echo
+		echo "ERROR: Option '$1' needs a path parameter"
+		show_usage
+	    fi
+	    DL_DIR="$2"
+	    shift 2
+	    ;;
+	-h|--help)
+	    show_usage
+	    ;;
+	-f|--force)
+	    force=1
+	    shift
+	    ;;
+	-n|--dry-run)
+	    run=:
+	    shift
+	    ;;
+	-v|--version)
+	    echo $VERSION
+		exit
+	    shift
+		;;
+	-*)
+	    echo
+	    echo "ERROR: Unknown option '$1'"
+	    show_usage
+	    ;;
+
+	*)
+	    TARGET="$1"
+	    shift
+	    ;;
+    esac
+done
+
+if [ -z $RELEASE ] ; then
+    RELEASE=$(dirname $0)
+fi
+
+echo
+
+if [ -z "$TARGET" ] ; then
+    echo "No target directory given; use . to install to current directory"
+    show_usage
+fi
+
+# OK, let's start. Prepend all delete and installation commands with $run.
+# Then they are automatically skipped in case of --dry-run.
+
+if [ "$run" == ":" ] ; then
+    echo "*** Dry run -- the following actions would be executed ***"
+    echo
+fi
+
+# ----- Remove existing files and directories ---------------------------------
+
+# Check for main target directory
+
+if [ -e "$TARGET" ] ; then
+	do_delete "$TARGET"
+fi
+
+# Check dl directory; package names must not contain blanks
+dl_packages=
+install_dl_packages=
+create_dl_link=1
+if [ -z "$DL_DIR" ] ; then
+    DL_DIR="$TARGET/$DL_DEF_DIR"
+    create_dl_link=0
+fi
+if [ -d "$DL_REL_DIR" ] ; then
+    dl_packages=$(cd "$DL_REL_DIR"; echo *)
+fi
+if [ -d "$DL_DIR" ] ; then
+    for package in $dl_packages ; do
+	dlpackage="$DL_DIR/$package"
+	if [ -e "$dlpackage" ] ; then
+	    # Skip if existing package is identical
+	    if cmp -s "$DL_REL_DIR/$package" "$dlpackage" ; then
+		continue
+	    fi
+	    do_delete "$dlpackage"
+	fi
+	# Add this package
+	install_dl_packages="$install_dl_packages $package"
+    done
+else
+    # Add all packages
+    install_dl_packages="$dl_packages"
+fi
+
+# Stop on problems with existing files
+if [ "$stop" == 1 ] ; then
+    echo
+    echo "*** Move away the file(s) or use option --force (-f) to delete. ***"
+    echo
+    exit 1;
+fi
+
+# ----- Unpack archives and set up environment --------------------------------
+
+echo "Setup release $RELEASE"
+echo
+
+# Create target directory if it does not exist yet
+if [ ! -d "$TARGET" ] ; then
+    do_mkdir "$TARGET"
+fi
+
+do_set_git_credentials
+
+$run cd $TARGET
+
+do_yocto_download
+
+$run cd $YOCTO_DIR
+
+# Write linux-fus.bbappend
+do_write_bbappend $LINUX_SRC_URI $LINUX_FUS_COMMIT $META_FUS_DIR/$KERNEL_PATH/$LINUX_FUS_BBAPPEND
+
+# Write uboot-fus.bbappend
+do_write_bbappend $UBOOT_SRC_URI $UBOOT_FUS_COMMIT $META_FUS_DIR/$UBOOT_PATH/$UBOOT_FUS_BBAPPEND
+
+# Create downloads directory if it does not exist yet
+if [ ! -d $DL_DIR ] ; then
+		do_mkdir $DL_DIR
+fi
+
+# Print user manual from yocto-f+s-utilities
+$run source ./yocto-f+s-utilities
+$run print_usage
+
+$run cd $WORKDIR
+
+# Copy extra packages from dl, if any
+if [ -d "$DL_REL_DIR" ] ; then
+    if [ ! -d "$DL_DIR" ] ; then
+	do_mkdir "$DL_DIR"
+    fi
+    for package in $install_dl_packages ; do
+	do_copy "$DL_REL_DIR/$package" "$DL_DIR/$package"
+    done
+fi
+
+echo

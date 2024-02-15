@@ -1,0 +1,10 @@
+version: '3'
+services:
+  yocto-build-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./.build:/build
+      - ./custom:/custom
+      - ./deploy:/deploy

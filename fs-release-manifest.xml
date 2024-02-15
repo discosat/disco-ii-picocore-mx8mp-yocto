@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<manifest>
+
+  <release version="fsimx8mp-Y2023.09"/>
+  <default sync-j="2"/>
+
+  <remote fetch="https://github.com/FSEmbedded" name="fus"/>
+
+  <project name="linux-fus" path="linux-fus" remote="fus" revision="b38f717d5d8ce622d9bc806163e871628e80e388" upstream="master">
+    <linkfile dest="yocto-fus/downloads/linux-fus" src="."/>
+  </project>
+
+  <project name="u-boot-fus" path="u-boot-fus" remote="fus" revision="5c669f2882d11e21ac7bf5a1723c647ce36bb188" upstream="master">
+    <linkfile dest="yocto-fus/downloads/u-boot-fus" src="."/>
+  </project>
+
+  <project name="meta-fus" path="yocto-fus/sources/meta-fus" remote="fus" revision="8fc9f68fc1e577b76af9a59e7a8aa7f48e2b7a57" upstream="master">
+    <linkfile dest="yocto-fus/fus-setup-release.sh" src="tools/fus-setup-release.sh"/>
+    <linkfile dest="yocto-fus/yocto-f+s-utilities" src="tools/yocto-f+s-utilities"/>
+  </project>
+
+  <project name="linux-examples-fus" path="linux-examples-fus" remote="fus" revision="a0b4c436df27bf44fc6d7419035fb797722a3403" upstream="master"/>
+
+  <remote fetch="https://github.com/nxp-imx" name="nxp-imx"/>
+  <remote fetch="https://github.com/OSSystems" name="OSSystems"/>
+  <remote fetch="https://code.qt.io/yocto"  name="QT6"/>
+  <remote fetch="https://github.com/TimesysGit"  name="Timesys"/>
+  <remote fetch="https://github.com/kraj" name="clang"/>
+  <remote fetch="https://github.com/Freescale" name="community"/>
+  <remote fetch="https://github.com/openembedded" name="oe"/>
+  <remote fetch="https://git.yoctoproject.org/git" name="yocto"/>
+  <remote fetch="https://github.com/nxp-imx-support" name="imx-support"/>
+  <remote fetch="https://github.com/basler/" name="basler"/>
+
+  <project name="fsl-community-bsp-base" path="yocto-fus/sources/base" remote="community" revision="60f79f7af60537146298560079ae603260f0bd14" upstream="kirkstone">
+    <linkfile dest="yocto-fus/README" src="README"/>
+    <linkfile dest="yocto-fus/setup-environment" src="setup-environment"/>
+  </project>
+  <project name="meta-browser" path="yocto-fus/sources/meta-browser" remote="OSSystems" revision="e232c2e21b96dc092d9af8bea4b3a528e7a46dd6"/>
+  <project name="meta-clang" path="yocto-fus/sources/meta-clang" remote="clang" revision="c728c3f9168c8a4ed05163a51dd48ca1ad8ac21d" upstream="kirkstone"/>
+  <project name="meta-freescale" path="yocto-fus/sources/meta-freescale" remote="community" revision="c82d4634e7aba8bc0de73ce1dfc997b630051571" upstream="kirkstone"/>
+  <project name="meta-freescale-3rdparty" path="yocto-fus/sources/meta-freescale-3rdparty" remote="community" revision="5977197340c7a7db17fe3e02a4e014ad997565ae" upstream="kirkstone"/>
+  <project name="meta-freescale-distro" path="yocto-fus/sources/meta-freescale-distro" remote="community" revision="d5bbb487b2816dfc74984a78b67f7361ce404253" upstream="kirkstone"/>
+
+  <project name="meta-imx" path="yocto-fus/sources/meta-imx" remote="nxp-imx" revision="refs/tags/rel_imx_5.15.71_2.2.1" upstream="kirkstone-5.15.71-2.2.1">
+    <linkfile dest="yocto-fus/README-IMXBSP" src="README"/>
+  </project>
+
+  <project name="meta-nxp-demo-experience" path="yocto-fus/sources/meta-nxp-demo-experience" remote="imx-support" revision="52eaf8bf42f8eda2917a1c8c046003c8c2c8f629" upstream="kirkstone-5.15.71-2.2.0"/>
+  <project name="meta-openembedded" path="yocto-fus/sources/meta-openembedded" remote="oe" revision="744a4b6eda88b9a9ca1cf0df6e18be384d9054e3" upstream="kirkstone"/>
+  <project name="meta-qt6" path="yocto-fus/sources/meta-qt6" remote="QT6" revision="ed785a25d12e365d1054700d4fc94a053176eb14" upstream="6.3"/>
+  <project name="meta-timesys" path="yocto-fus/sources/meta-timesys" remote="Timesys" revision="d1ad27bfacc937048e7f9084b17f4d7c917d2004" upstream="master"/>
+  <project name="meta-virtualization" path="yocto-fus/sources/meta-virtualization" remote="yocto" revision="9482648daf0bb42ff3475e7892542cf99f3b8d48" upstream="master"/>
+  <project name="poky" path="yocto-fus/sources/poky" remote="yocto" revision="fc697fe87412b9b179ae3a68d266ace85bb1fcc6" upstream="kirkstone"/>
+  <project name="meta-basler-imx8" path="yocto-fus/sources/meta-basler-imx8" remote="basler" revision="d1e9de52c4f396e03a270e71d553bce6b042465e" upstream="kirkstone-5.15.71-2.2.0"/>
+  <project name="meta-basler-tools" path="yocto-fus/sources/meta-basler-tools" remote="basler" revision="59ef2ce614a1b8716cd8e618a68681eba9891b5d" upstream="kirkstone"/>
+
+</manifest>
