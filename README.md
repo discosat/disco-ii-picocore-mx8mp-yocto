@@ -1,4 +1,4 @@
-# DISCO II Picocore MX8MP system image Yocto setup
+# DISCO II PicoCore™MX8MP system image Yocto setup
 
 ## TLDR:
 ```bash

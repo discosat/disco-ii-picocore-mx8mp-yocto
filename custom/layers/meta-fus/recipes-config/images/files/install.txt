@@ -1,0 +1,79 @@
+# Error handling functions for the load command. Aborts execution of the script if load returns an error or filesize is greater than the load chunk.
+setenv do_check 'itest $? != 0 || itest $filesize -gt $update_chunk_size'
+setenv do_message 'echo "Loading from "$updatedev" failed! Aborting installation.."'
+setenv do_cleanup 'env delete update_chunk_size update_chunk_pos update_image_size_rest u_c_size_blk u_c_pos_blk updatedev do_check do_message do_cleanup is_error; true'
+setenv is_error 'run do_check && run do_message do_cleanup'
+
+if test $bd_kernel = "nand";
+then
+
+# NANDBOOT
+# Load kernel image and store in partition Kernel
+load ${updatedev} ${loadaddr} ${bootfile}-${arch}
+nand erase.part Kernel
+nand write ${loadaddr} Kernel ${filesize}
+# Load device tree blob and store in partition FDT
+load ${updatedev} ${loadaddr} ${bootfdt}
+nand erase.part FDT
+nand write ${loadaddr} FDT ${filesize}
+# Load root filesystem
+load ${updatedev} ${loadaddr} rootfs-${arch}.ubifs
+# Create UBI with volume rootfs on partition TargetFS
+nand erase.part TargetFS
+ubi part TargetFS
+ubi create rootfs
+# Store root filesystem in UBI volume rootfs
+ubi write ${loadaddr} rootfs ${filesize}
+# Set default configuration: kernel and fdt from NAND, rootfs from ubifs
+run .kernel_nand
+run .fdt_nand
+run .rootfs_ubifs
+
+else
+
+# MMC BOOT
+# Set Chunk size to 14 MiB to support more USB sticks
+setenv update_chunk_size E00000
+setenv update_chunk_pos 0
+
+# Set to mmc User partition
+mmc dev ${mmcdev} 0
+
+size ${updatedev} emmc-${arch}.sysimg
+setenv update_image_size_rest $filesize
+
+while itest ${update_image_size_rest} != 0 ; do
+
+if itest ${update_image_size_rest} -lt ${update_chunk_size}; then
+setenv update_chunk_size $update_image_size_rest
+fi
+
+load ${updatedev} ${loadaddr} emmc-${arch}.sysimg ${update_chunk_size} ${update_chunk_pos}
+run is_error && exit 1
+
+setexpr update_image_size_rest ${update_image_size_rest} - ${update_chunk_size}
+
+# Round up
+setexpr u_c_size_blk ${update_chunk_size} + 0x1ff
+# Convert to blk size
+setexpr u_c_size_blk ${u_c_size_blk} / 0x200
+setexpr u_c_pos_blk ${update_chunk_pos} / 0x200
+
+mmc write ${loadaddr} ${u_c_pos_blk} ${u_c_size_blk}
+
+setexpr update_chunk_pos ${update_chunk_pos} + ${update_chunk_size}
+
+done
+# Set default configuration: kernel, fdt, auxcore and rootfs from MMC
+run .kernel_mmc
+run .fdt_mmc
+run .rootfs_mmc
+fi;
+
+# Clean environment and save environment
+run do_cleanup
+saveenv
+# Done
+echo "Installation complete"
+echo
+echo "Please set/verify ethernet address(es) now and call saveenv"

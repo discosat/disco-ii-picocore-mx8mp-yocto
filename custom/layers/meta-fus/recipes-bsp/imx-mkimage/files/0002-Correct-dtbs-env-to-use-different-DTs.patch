@@ -1,0 +1,29 @@
+From bd80b420dbf7321a19bfc9a936b51462d1f63450 Mon Sep 17 00:00:00 2001
+From: Anatol Derksen <derksen@fs-net.de>
+Date: Wed, 25 Mar 2020 07:19:26 +0000
+Subject: [PATCH 2/2] Correct dtbs env to use different DTs
+
+Correct dtbs env to use different DTs.f
+E.g. make SOC=iMX8MM DTB=armstonemx8m.dtb flash_evk
+---
+diff --git a/iMX8M/soc.mak b/iMX8M/soc.mak
+index d714259..037bf1c 100644
+--- a/iMX8M/soc.mak
++++ b/iMX8M/soc.mak
+@@ -133,7 +133,7 @@
+ clean:
+ 	@rm -f $(MKIMG) u-boot-atf.bin u-boot-atf-tee.bin u-boot-spl-ddr.bin u-boot.itb u-boot.its u-boot-ddr3l.itb u-boot-ddr3l.its u-boot-spl-ddr3l.bin u-boot-ddr4.itb u-boot-ddr4.its u-boot-spl-ddr4.bin u-boot-ddr4-evk.itb u-boot-ivt.itb u-boot-ddr4-evk.its $(OUTIMG)
+
+-dtbs = evk.dtb
++dtbs = $(DTB)
+ $(dtbs):
+ 	./$(DTB_PREPROC) $(PLAT)-evk.dtb $(dtbs)
+
+@@ -145,7 +145,7 @@
+ 	./mkimage_uboot -E -p 0x3000 -f u-boot.its u-boot.itb
+ 	@rm -f u-boot.its $(dtbs)
+
+-dtbs_ddr3l = valddr3l.dtb
++dtbs_ddr3l = $(DTB)
+ $(dtbs_ddr3l):
+ 	./$(DTB_PREPROC) $(PLAT)-ddr3l-$(VAL_BOARD).dtb $(dtbs_ddr3l)

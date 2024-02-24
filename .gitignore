@@ -6,7 +6,6 @@ pyshtables.py
 pstage/
 scripts/oe-git-proxy-socks
 sources/
-meta-*/
 !meta-skeleton
 !meta-hob
 hob-image-*.bb
@@ -24,3 +23,4 @@ pull-*/
 
 .build/
 deploy/
+.todo.md

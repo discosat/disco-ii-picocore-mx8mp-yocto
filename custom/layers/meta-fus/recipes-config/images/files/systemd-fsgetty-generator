@@ -1,0 +1,34 @@
+#!/bin/sh
+
+servicePath=/lib/systemd/system
+tempServicePath=/run/systemd/system
+unitPath=/run/systemd/generator/getty.target.wants
+serviceName=fsserial-getty@.service
+
+# Default values
+default_tty=ttymxc0
+default_baudrate=115200
+
+# If bdinfo is not available set login to linux debug console
+if [ -e /sys/class/tty/console/active ] ; then
+	default_tty=$(cat /sys/class/tty/console/active)
+fi
+
+# Get login tty
+if [ -e /sys/bdinfo/login_tty ] ; then
+	default_tty=$(cat /sys/bdinfo/login_tty)
+fi
+
+# Get login baudrate
+if [ -e /sys/bdinfo/login_speed ] ; then
+	default_baudrate=$(cat /sys/bdinfo/login_speed)
+fi
+
+# Set baudrate
+cp $servicePath/$serviceName $tempServicePath/
+sed -i -e s/\@BAUDRATE\@/$default_baudrate/g $tempServicePath/$serviceName
+sed -i -e s/@TERM@/vt100/g $tempServicePath/$serviceName
+# Set login tty
+ln -s  $tempServicePath/$serviceName   $unitPath/fsserial-getty@$default_tty.service
+
+

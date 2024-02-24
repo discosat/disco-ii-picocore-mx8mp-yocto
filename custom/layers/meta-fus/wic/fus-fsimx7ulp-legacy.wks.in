@@ -1,0 +1,17 @@
+# short-description: Create SD card image with a boot partition
+# long-description:
+# Create an legacy image PicocoreMX7ULP board with the old eMMC
+#
+# The disk layout used is:
+#  - --------- -------------- --------------
+# | MBR  | boot     | rootfs   | DATA...
+#  - --------- -------------- --------------
+# ^      ^          ^          ^
+# |      |          |          |
+# 0      1MiB     33MiB      33 MiB + rootfs + IMAGE_EXTRA_SPACE (default 10MiB)
+#
+
+part /boot --source bootimg-partition --ondisk mmcblk --fstype=vfat --label boot --active --align 1024 --fixed-size 32
+part / --source rootfs --ondisk mmcblk --fstype=ext4 --label root --align 1024
+
+bootloader --ptable msdos

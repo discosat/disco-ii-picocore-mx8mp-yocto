@@ -1,0 +1,13 @@
+diff --git a/board/F+S/common/Kconfig b/board/F+S/common/Kconfig
+index de83dea95..5e89a1575 100644
+--- a/board/F+S/common/Kconfig
++++ b/board/F+S/common/Kconfig
+@@ -20,7 +20,7 @@ config FS_BOARD_OFFS
+ 
+ config FS_BOARD_MODE_RO
+ 	bool "Load rootfs read-only (F&S)"
+-	default y
++	default n
+ 	help
+ 	  F&S boards usually start the rootfs in read-only mode to
+ 	  avoid any data loss when the power fails or when the board is

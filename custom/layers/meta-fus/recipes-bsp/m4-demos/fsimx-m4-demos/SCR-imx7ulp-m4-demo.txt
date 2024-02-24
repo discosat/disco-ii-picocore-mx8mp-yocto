@@ -1,0 +1,20 @@
+Software Content Register
+
+--------------------------------------------
+
+Package:                   power_mode_switch.img
+
+License Files:             COPYING
+
+Type of content:           Binaries
+
+Description and comments:  F&S i.MX7ULP MCUXpresso SDK demo images on Cortex-M4 core
+
+Release Location:          freertos-sdk-2.5.1-fsimx7ulp-V2020.03.1
+
+Origin:                    NXP (BSD-3-Clause and Proprietary)
+                           ARM LIMITED (BSD-3-Clause)
+                           Real Time Engineers, Ltd (MIT) - https://aws.amazon.com/freertos/
+                           Mentor Graphics, Ltd. (BSD-3-Clause) - https://github.com/OpenAMP/open-amp/
+
+--------------------------------------------

@@ -1,0 +1,32 @@
+From 6605271cc4db4220d37fc14d9ca1f0c90752de37 Mon Sep 17 00:00:00 2001
+Message-Id: <6605271cc4db4220d37fc14d9ca1f0c90752de37.1665062571.git.keller@fs-net.de>
+In-Reply-To: <c977f7da84e16be1fab5942898b5dfea90f43010.1665062571.git.keller@fs-net.de>
+References: <c977f7da84e16be1fab5942898b5dfea90f43010.1665062571.git.keller@fs-net.de>
+From: Hartmut Keller <keller@fs-net.de>
+Date: Thu, 6 Oct 2022 15:22:35 +0200
+Subject: [PATCH 2/2] Create module.aliases for the sdio devices
+
+By adding a MODULE_DEVICE_TABLE to moal_sdio_mmc.c, depmod will create
+module.aliases for the created modules. This helps autoloading the
+driver via udev. NXP expects to load the modules by hand, we at F&S
+want to load the modules automatically.
+---
+ mxm_wifiex/wlan_src/mlinux/moal_sdio_mmc.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mlinux/moal_sdio_mmc.c b/mlinux/moal_sdio_mmc.c
+index ad87e30..f839b50 100644
+--- a/mlinux/moal_sdio_mmc.c
++++ b/mlinux/moal_sdio_mmc.c
+@@ -137,6 +137,8 @@ static const struct sdio_device_id wlan_ids[] = {
+ 	{},
+ };
+ 
++MODULE_DEVICE_TABLE(sdio, wlan_ids);
++
+ int woal_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id);
+ void woal_sdio_remove(struct sdio_func *func);
+ #ifdef SDIO
+-- 
+2.14.5
+

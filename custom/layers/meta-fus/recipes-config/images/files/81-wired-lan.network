@@ -1,0 +1,11 @@
+[Match]
+Name=lan*
+KernelCommandLine=!nfsroot
+
+[Network]
+DHCP=yes
+BindCarrier=eth0
+
+[DHCP]
+RouteMetric=10
+ClientIdentifier=mac

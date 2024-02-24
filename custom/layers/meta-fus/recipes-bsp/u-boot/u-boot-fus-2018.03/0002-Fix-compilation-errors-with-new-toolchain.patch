@@ -1,0 +1,55 @@
+From 45f174c72c5e9f04a31b6e49342ebc12c42e769e Mon Sep 17 00:00:00 2001
+Message-Id: <45f174c72c5e9f04a31b6e49342ebc12c42e769e.1686661840.git.gerbach@fs-net.de>
+From: Philipp Gerbach <gerbach@fs-net.de>
+Date: Tue, 13 Jun 2023 15:10:28 +0200
+Subject: [PATCH] Fix compilation errors with new toolchain
+
+The newer toolchain 11.2 causes some compilation errors for the old
+2018.03 uboot.
+---
+ scripts/Makefile.lib                | 2 +-
+ scripts/dtc/dtc-lexer.l             | 1 -
+ scripts/dtc/dtc-lexer.lex.c_shipped | 2 +-
+ 3 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/scripts/Makefile.lib b/scripts/Makefile.lib
+index 8f2165313..f731ecf7b 100644
+--- a/scripts/Makefile.lib
++++ b/scripts/Makefile.lib
+@@ -318,7 +318,7 @@ quiet_cmd_dtc = DTC     $@
+ # Modified for U-Boot
+ # Bring in any U-Boot-specific include at the end of the file
+ cmd_dtc = mkdir -p $(dir ${dtc-tmp}) ; \
+-	(cat $<; $(if $(u_boot_dtsi),echo '\#include "$(u_boot_dtsi)"')) > $(pre-tmp); \
++	(cat $<; $(if $(u_boot_dtsi),echo '#include "$(u_boot_dtsi)"')) > $(pre-tmp); \
+ 	$(CPP) $(dtc_cpp_flags) -x assembler-with-cpp -o $(dtc-tmp) $(pre-tmp) ; \
+ 	$(DTC) -O dtb -o $@ -b 0 \
+ 		-i $(dir $<) $(DTC_FLAGS) \
+diff --git a/scripts/dtc/dtc-lexer.l b/scripts/dtc/dtc-lexer.l
+index fd825ebba..24af54997 100644
+--- a/scripts/dtc/dtc-lexer.l
++++ b/scripts/dtc/dtc-lexer.l
+@@ -38,7 +38,6 @@ LINECOMMENT	"//".*\n
+ #include "srcpos.h"
+ #include "dtc-parser.tab.h"
+ 
+-YYLTYPE yylloc;
+ extern bool treesource_error;
+ 
+ /* CAUTION: this will stop working if we ever use yyless() or yyunput() */
+diff --git a/scripts/dtc/dtc-lexer.lex.c_shipped b/scripts/dtc/dtc-lexer.lex.c_shipped
+index 011bb9632..2ba11cdbb 100644
+--- a/scripts/dtc/dtc-lexer.lex.c_shipped
++++ b/scripts/dtc/dtc-lexer.lex.c_shipped
+@@ -631,7 +631,7 @@ char *yytext;
+ #include "srcpos.h"
+ #include "dtc-parser.tab.h"
+ 
+-YYLTYPE yylloc;
++
+ extern bool treesource_error;
+ 
+ /* CAUTION: this will stop working if we ever use yyless() or yyunput() */
+-- 
+2.40.0
+

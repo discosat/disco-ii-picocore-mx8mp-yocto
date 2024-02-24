@@ -1,0 +1,73 @@
+#!/bin/sh
+#
+# Supply some useful helper functions. Call with
+#
+#  source yocto-f+s-utilities
+#
+
+list_fsl_target_boards()
+{
+[ -f conf/local.conf ] && ls -1 ../sources/meta-fsl-arm/conf/machine/*.conf
+}
+
+list_non_fsl_target_boards()
+{
+[ -f conf/local.conf ] && ls -1 ../sources/meta-fsl-arm-extra/conf/machine/*.conf
+}
+
+list_fus_target_boards()
+{
+[ -f conf/local.conf ] && ls -1 ../sources/meta-fus/conf/machine/*.conf
+}
+
+list_target_images()
+{
+[ -f conf/local.conf ] && bitbake-layers show-recipes | grep image\- | sed s/://g
+}
+
+list_all_recipes()
+{
+[ -f conf/local.conf ] && bitbake-layers show-recipes
+}
+
+list_target_image_packages()
+{
+[ -f conf/local.conf ] && [ ! -z $1 ] && bitbake -g $1 &&\
+cat pn-depends.dot | grep -v -e '-native' | grep -v digraph | grep -v -e '-image'\
+| awk '{print $1}' | sort | uniq
+}
+
+print_usage()
+{
+	# List of possible board names that will be shown later
+	ARCHS="fsimx6 fsimx6sx fsimx6ul fsimx7ulp fsimx8mm fsimx8mn fsimx8mp"
+	DISTROS="fus-imx-wayland fus-imx-xwayland "
+	echo
+	echo "DISTRO=<distro> MACHINE=<arch> . fus-setup-release.sh [OPTIONS]"
+	echo
+	echo "Please note the extra dot for sourcing in the setup script."
+	echo
+	echo "Mandatory"
+	echo "<distro> can be one of:   $DISTROS"
+	echo "<arch>   can be one of:   $ARCHS"
+	echo
+	echo "OPTIONS"
+	echo "  -b          set name of the build directory"
+	echo "              default is \"build-$MACHINE-$DISTRO\""
+	echo "  -m [rw/ro]  create  read-write/read-only root file system"
+	echo "              default is read-write"
+	echo "              can be changed later by removing or adding the"
+	echo "              EXTRA_IMAGE_FEATURES=\"read-only-rootfs\" from your local.conf"
+	echo "  -h          shows this help"
+	echo
+	echo "If you want to build yocto in a different shell you have to call"
+	echo "  source setup-environment  <build-dir>"
+	echo "there to reload the environment  variables"
+	echo
+	echo "In the build directory, you can use bitbake to build."
+	echo
+	echo "Examples:"
+	echo "  bitbake fus-image-std        Build F&S standard image (Weston)"
+	echo "  bitbake fus-image-qt6        Build F&S Qt6 image"
+	echo
+}
