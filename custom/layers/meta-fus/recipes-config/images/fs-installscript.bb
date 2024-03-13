@@ -12,22 +12,19 @@ ARCH_armv7a = "arm"
 ARCH_aarch64 = "arm64"
 
 SRC_URI = " \
-           file://install.txt \
-           file://update-uboot-nboot-sysimg.txt\
+           file://update.txt\
 		  "
 
 DEPENDS:append = " u-boot-mkimage-native"
 
 do_compile() {
-    uboot-mkimage -A ${ARCH} -O u-boot -T script -C none -n "F&S install script" -d ${WORKDIR}/install.txt ${WORKDIR}/install.scr
-	uboot-mkimage -A ${ARCH} -O u-boot -T script -C none -n "F&S install script" -d ${WORKDIR}/update-uboot-nboot-sysimg.txt ${WORKDIR}/update-uboot-nboot-sysimg.scr
+	uboot-mkimage -A ${ARCH} -O u-boot -T script -C none -n "DISCO II PicoCoreMX8MP install script" -d ${WORKDIR}/update.txt ${WORKDIR}/update.scr
 }
 
 do_deploy() {
 	install -d ${DEPLOYDIR}/
-	install -m 0777 ${WORKDIR}/install.scr ${DEPLOYDIR}
-	install -m 0777 ${WORKDIR}/update-uboot-nboot-sysimg.scr ${DEPLOYDIR}
+	install -m 0777 ${WORKDIR}/update.scr ${DEPLOYDIR}
 }
 addtask deploy before do_build after do_compile
 
-FILES:${PN} = "install.scr update-uboot-nboot-sysimg.scr"
+FILES:${PN} = "update.scr"

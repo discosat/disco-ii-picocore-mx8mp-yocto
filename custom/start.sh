@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x
+set -e
 
 ##### Prepare the build environment with customizations #####
 
@@ -26,3 +26,12 @@ source setup-environment build-fsimx8mp-fus-imx-wayland
 ##### Build the image #####
 
 bitbake disco-fus-image
+
+##### Prepare deploy volume #####
+
+sudo cp -L /build/yocto-fus/build-fsimx8mp-fus-imx-wayland/tmp/deploy/images/fsimx8mp/picocoremx8mp.dtb /deploy/
+sudo cp -L /build/yocto-fus/build-fsimx8mp-fus-imx-wayland/tmp/deploy/images/fsimx8mp/emmc-fsimx8mp.sysimg /deploy/
+sudo cp -L /build/yocto-fus/build-fsimx8mp-fus-imx-wayland/tmp/deploy/images/fsimx8mp/Image-fsimx8mp /deploy/
+sudo cp -L /build/yocto-fus/build-fsimx8mp-fus-imx-wayland/tmp/deploy/images/fsimx8mp/update.scr /deploy/
+
+echo "System files ready to flash onto a PicoCore™MX8MP are now available in the deploy directory"
