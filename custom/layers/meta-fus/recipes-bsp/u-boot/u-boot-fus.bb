@@ -5,7 +5,7 @@ DESCRIPTION = "bootloader for F&S boards and modules"
 require recipes-bsp/u-boot/u-boot.inc
 
 PROVIDES += "u-boot"
-DEPENDS:append = " python3 dtc-native bison-native"
+DEPENDS:append = " python3 dtc-native bison-native bc-native xxd-native"
 RDEPENDS:${PN}:append = " fs-installscript"
 
 LICENSE = "GPL-2.0-or-later"

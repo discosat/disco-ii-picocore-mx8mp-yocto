@@ -41,6 +41,7 @@ RUN apt-get update && apt-get install -y \
     xterm \
     python3-subunit \
     mesa-common-dev \
+    libarchive-zip-perl \
  && pip3 install pylint \
  && ln -s /usr/bin/python3 /usr/bin/python \
  && locale-gen en_US.UTF-8
