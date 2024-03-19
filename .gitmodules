@@ -1,0 +1,3 @@
+[submodule "custom/layers/meta-disco-pipeline"]
+	path = custom/layers/meta-disco-pipeline
+	url = https://github.com/Lindharden/meta-disco-pipeline.git
