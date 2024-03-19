@@ -11,6 +11,8 @@ B = "${S}/builddir"
 
 inherit cmake
 
+DEPENDS += " zeromq can-utils"
+
 EXTRA_OECMAKE = "-DCMAKE_INSTALL_PREFIX=/usr"
 
 do_configure() {

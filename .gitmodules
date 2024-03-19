@@ -1,3 +1,6 @@
 [submodule "custom/layers/meta-disco-pipeline"]
 	path = custom/layers/meta-disco-pipeline
 	url = https://github.com/Lindharden/meta-disco-pipeline.git
+[submodule "custom/layers/meta-disco-camera"]
+	path = custom/layers/meta-disco-camera
+	url = https://github.com/ivaroli/meta-disco-camera.git
