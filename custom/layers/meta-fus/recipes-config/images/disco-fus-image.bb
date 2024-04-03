@@ -56,15 +56,5 @@ CORE_IMAGE_EXTRA_INSTALL += " \
     nxp-wlan-sdk \
     kernel-module-nxp89xx \
     v4l-utils \
+    procps \
 "
-
-
-SRC_URI += "file://disco-pipeline.service"
-
-do_install:prepend() {
-    install -d ${D}${systemd_unitdir}/system/
-    install -m 0644 ${WORKDIR}/disco-pipeline.service ${D}${systemd_unitdir}/system
-}
-
-SYSTEMD_PACKAGES = "${PN}"
-SYSTEMD_SERVICE:${PN} = "disco-pipeline.service"

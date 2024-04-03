@@ -1,0 +1,9 @@
+[Unit]
+Description=A53 Application System Manager
+
+[Service]
+ExecStart=/usr/bin/a53-app-sys-manager
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
