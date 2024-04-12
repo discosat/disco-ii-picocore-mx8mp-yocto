@@ -8,7 +8,7 @@ if [ "$(stat -c '%U:%G' /build)" != "yocto:yocto" ]; then
 fi
 
 if [ ! -d "/build/yocto-fus" ]; then 
-    cp -rL /prep-build/disco-ii-yocto/* /build/
+    cp -rL /prep-build/disco-ii-yocto/yocto-fus /build/yocto-fus
 fi
 
 # conf
@@ -19,7 +19,6 @@ cp -rL /custom/layers/* /build/yocto-fus/sources/
 
 # patches
 cp /custom/patch/scons.bbclass /build/yocto-fus/sources/poky/meta/classes/scons.bbclass
-cp /custom/patch/meta-disco-camera-opencv.bb /build/yocto-fus/sources/meta-disco-camera/recipes/opencv/opencv_4.1.0.bb
 if [ -f "/build/yocto-fus/sources/meta-disco-camera/recipes/libcsp/libcsp.bb" ]; then rm /build/yocto-fus/sources/meta-disco-camera/recipes/libcsp/libcsp.bb; fi
 if [ -f "/build/yocto-fus/sources/meta-disco-pipeline/recipes/libcsp/libcsp.bb" ]; then rm /build/yocto-fus/sources/meta-disco-pipeline/recipes/libcsp/libcsp.bb; fi
 

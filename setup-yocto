@@ -12,14 +12,8 @@ RELEASE=$(grep '<release' "${YOCTO_MANIFEST}"| grep -Po 'version="\K.*?(?=")')
 YOCTO_DOWNLOAD_URL="https://github.com/FSEmbedded/releases-fus"
 YOCTO_BRANCH="main"
 
-
-UBOOT_FUS_BBAPPEND="u-boot-fus.bbappend"
-LINUX_FUS_BBAPPEND="linux-fus.bbappend"
 WORKDIR=$(pwd)
 
-EXAMPLES_DIR=examples-fus
-LINUX_DIR=linux-fus
-UBOOT_DIR=u-boot-fus
 YOCTO_DIR=yocto-fus
 META_FUS_DIR=sources/meta-fus/
 KERNEL_PATH=recipes-kernel/linux/
@@ -37,15 +31,6 @@ parse_xml_value()
 
 	echo $result
 }
-
-LINUX_FUS_COMMIT=$(parse_xml_value "linux-fus" "revision" "${YOCTO_MANIFEST}")
-LINUX_FUS_BRANCH=$(parse_xml_value "linux-fus" "upstream" "${YOCTO_MANIFEST}")
-
-UBOOT_FUS_COMMIT=$(parse_xml_value "u-boot-fus" "revision" "${YOCTO_MANIFEST}")
-UBOOT_FUS_BRANCH=$(parse_xml_value "u-boot-fus" "upstream" "${YOCTO_MANIFEST}")
-
-UBOOT_SRC_URI="git://\${DL_DIR}/$UBOOT_DIR;branch=$UBOOT_FUS_BRANCH;protocol=file"
-LINUX_SRC_URI="git://\${DL_DIR}/$LINUX_DIR;branch=$LINUX_FUS_BRANCH;protocol=file"
 
 
 # ----- Helper functions ------------------------------------------------------
@@ -225,9 +210,6 @@ do_yocto_download()
 	$run echo "Downloading all Yocto packages (repo sync)"
 	$run ./repo sync -m $YOCTO_MANIFEST
 
-	# Create local branches so Yocto can find the commits
-	$run ./repo start $LINUX_FUS_BRANCH $LINUX_DIR
-	$run ./repo start $UBOOT_FUS_BRANCH $UBOOT_DIR
 }
 
 # ----- Parse arguments -------------------------------------------------------
@@ -366,12 +348,6 @@ $run cd $TARGET
 do_yocto_download
 
 $run cd $YOCTO_DIR
-
-# Write linux-fus.bbappend
-do_write_bbappend $LINUX_SRC_URI $LINUX_FUS_COMMIT $META_FUS_DIR/$KERNEL_PATH/$LINUX_FUS_BBAPPEND
-
-# Write uboot-fus.bbappend
-do_write_bbappend $UBOOT_SRC_URI $UBOOT_FUS_COMMIT $META_FUS_DIR/$UBOOT_PATH/$UBOOT_FUS_BBAPPEND
 
 # Create downloads directory if it does not exist yet
 if [ ! -d $DL_DIR ] ; then
