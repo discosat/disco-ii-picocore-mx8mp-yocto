@@ -1,8 +1,33 @@
 # Error handling functions for the load command. Aborts execution of the script if load returns an error or filesize is greater than the load chunk.
 setenv do_check 'itest $? != 0 || itest $filesize -gt $update_chunk_size'
 setenv do_message 'echo "Loading from "$updatedev" failed! Aborting installation.."'
-setenv do_cleanup 'env delete update_chunk_size update_chunk_pos update_image_size_rest u_c_size_blk u_c_pos_blk updatedev do_check do_message do_cleanup is_error; true'
+setenv do_cleanup 'env delete update_chunk_size update_chunk_pos update_image_size_rest u_c_size_blk u_c_pos_blk updatedev do_check do_message do_cleanup is_error update_state; true'
 setenv is_error 'run do_check && run do_message do_cleanup'
+
+if test -z "${update_state}";
+then
+setenv update_state uboot
+
+elif test ${update_state} = "uboot";
+then
+setenv update_state nboot
+
+elif test ${update_state} = "nboot";
+then
+setenv update_state rootfs
+fi
+
+if test ${update_state} = "uboot" || test ${update_state} = "nboot";
+then
+load ${updatedev} ${loadaddr} ${update_state}-${arch}.fs
+fsimage save || run do_message &&  run do_cleanup && exit 1
+saveenv
+reset
+fi
+
+# Update rootfs
+if test ${update_state} = "rootfs";
+then
 
 if test $bd_kernel = "nand";
 then
@@ -70,13 +95,20 @@ setenv platform "picocoremx8mp"
 run .kernel_mmc
 run .fdt_mmc
 run .rootfs_mmc
-fi;
+
+fi # MMC BOOT
+
+else # Update rootfs
+echo "Error! Unknwon state: $update_state"
+exit 1
+fi # Update rootfs
 
 # Prepare Cortex-M7 core
 echo "Configuring Cortex-M7 core boot"
 setenv m7image "/home/root/disco_scheduler.bin"
 setenv loadm7image "ext4load mmc 2:2 ${loadaddr} ${m7image}"
 setenv m7boot "${loadm7image}; cp.b ${loadaddr} 0x7e0000 0x1fc00; dcache flush; bootaux 0x7e0000"
+setenv bootcmd "run m7boot; ${bootcmd}"
 
 # Clean environment and save environment
 run do_cleanup
