@@ -139,6 +139,7 @@ void can_netmask_callback() {
 }
 
 void suspend_a53_callback() {
+    system("echo N > /sys/module/printk/parameters/console_suspend");
     system("echo mem > /sys/power/state");
 }
 
@@ -246,21 +247,6 @@ void switch_m7_bin_callback() {
     // if (access("/home/root/disco_scheduler.bin", F_OK) != -1) {
     //     csp_print("Attempted to switch Cortex-M7 binaries\n");
     // }
-}
-
-void kill_process_callback() {
-    char buffer[128];
-    FILE *fp;
-
-    fp = popen("pkill -f /path/to/executable", "r");
-    if (fp == NULL) {
-        csp_print("Failed to run command\n");
-        return;
-    }
-    while (fgets(buffer, sizeof(buffer)-1, fp) != NULL) {
-        csp_print("%s", buffer);
-    }
-    pclose(fp);
 }
 
 int main(void) {
