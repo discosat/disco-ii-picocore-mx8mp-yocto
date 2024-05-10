@@ -4,6 +4,7 @@
  * This can be used for various tasks such as:
  * - Suspending linux (STOP A53 cores) - this also brings this node down, so it must be woken up from the Cortex-M7
  *  - set `suspend_a53` to any value to suspend the A53 cores
+ *  - set `suspend_on_boot` to any value greater than or equal to 1 to suspend the A53 cores on boot (This is a persistent setting)
  *
  * - Installing Vimba drivers
  *  - set `vimba_install` to any value to install Vimba drivers
@@ -47,13 +48,19 @@ void can_netmask_callback();
 uint16_t _can_addr;
 uint16_t _can_netmask;
 param_t can_addr;
+param_t can_netmask;
 csp_iface_t* can_iface;
 #define CAN_ADDR_DEFAULT 21
 #define CAN_NETMASK_DEFAULT 8
 #define PARAMID_CAN_ADDR 21
 #define PARAMID_CAN_NETMASK 22
 PARAM_DEFINE_STATIC_VMEM(PARAMID_CAN_ADDR, can_addr, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, can_addr_callback, "", config, 0x10, "CAN interface address");
-PARAM_DEFINE_STATIC_VMEM(PARAMID_CAN_NETMASK, can_netmask, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, can_netmask_callback, "", config, 0x102, "CAN interface netmask");
+PARAM_DEFINE_STATIC_VMEM(PARAMID_CAN_NETMASK, can_netmask, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, can_netmask_callback, "", config, 0x12, "CAN interface netmask");
+
+void suspend_on_boot_callback();
+param_t suspend_on_boot;
+#define PARAMID_SUSPEND_ON_BOOT 23
+PARAM_DEFINE_STATIC_VMEM(PARAMID_SUSPEND_ON_BOOT, suspend_on_boot, PARAM_TYPE_UINT8, -1, 0, PM_SYSCONF, suspend_on_boot_callback, "", config, 0x100, "Whether to suspend A53 cores on boot");
 
 void suspend_a53_callback();
 void vimba_install_callback();
@@ -249,6 +256,55 @@ void switch_m7_bin_callback() {
     // }
 }
 
+/**
+ * use the /home/root/suspend_on_boot file as a flag to determine whether to suspend the A53 cores on boot
+ *
+ * suspend_on_boot  = 0 -> do not suspend A53 cores on boot
+ * suspend_on_boot >= 1 -> suspend A53 cores on boot
+*/
+void suspend_on_boot_callback() {
+    uint8_t param_val = param_get_uint8(&suspend_on_boot);
+
+    // Open the file for writing. This will create the file if it doesn't exist.
+    FILE *file = fopen("/home/root/suspend_on_boot", "w");
+    if (file == NULL) {
+        perror("Failed to open file");
+        return;
+    }
+
+    // Write the param_val to the file.
+    fprintf(file, "%d", param_val);
+
+    // Close the file.
+    fclose(file);
+}
+
+/**
+ * Read the value from the /home/root/suspend_on_boot file.
+ *
+ * @return the value read from the file
+ * @return -1 if the file could not be opened
+*/
+int suspend_on_boot_read() {
+    // Open the file for reading.
+    FILE *file = fopen("/home/root/suspend_on_boot", "r");
+    if (file == NULL) {
+        perror("Failed to open file");
+        return -1;
+    }
+
+    // Read the value from the file.
+    int param_val;
+    fscanf(file, "%d", &param_val);
+
+    // Close the file.
+    fclose(file);
+
+    param_set_uint8(&suspend_on_boot, param_val);
+
+    return param_val;
+}
+
 int main(void) {
     csp_conf.hostname = "app-sys-manager";
     csp_conf.model = "PicoCoreMX8MP-Cortex-A53";
@@ -297,6 +353,10 @@ int main(void) {
     can_iface->addr = _can_addr;
     can_iface->netmask = _can_netmask;
     can_iface->name = "CAN";
+
+    if (suspend_on_boot_read() >= 1) {
+        suspend_a53_callback();
+    }
 
     while (1) {
         sleep(1);
