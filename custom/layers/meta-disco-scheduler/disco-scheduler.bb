@@ -9,7 +9,7 @@ SRC_URI = "git://github.com/discosat/disco-ii-cortex-m7-scheduler.git;protocol=h
            git://github.com/spaceinventor/libparam.git;protocol=https;destsuffix=git/lib/param;name=libparam;branch=master \
            git://github.com/discosat/csp_proc.git;protocol=https;destsuffix=git/lib/csp_proc;name=csp_proc;branch=main"
 
-SRCREV = "14ee892e34a68ca406f5b1ba10b4e395c997ae6b"
+SRCREV = "821999c8f77075fcfcbb1f671cf0a9abff5edba9"
 SRCREV_libcsp = "544635f292b7a15ea46b95cd2861102129c329e7"
 SRCREV_libparam = "fdf62e155a965df99a1012174677c6f2958a7e4f"
 SRCREV_csp_proc = "edac3dd42e089486449b0fc1eb878b78ec7a6320"
