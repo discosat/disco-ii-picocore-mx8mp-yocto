@@ -3,11 +3,11 @@ SECTION = "pipeline"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-SRC_URI = "git://github.com/Lindharden/DIPP.git;protocol=https;branch=yocto;rev=295f99cdc433ff723603d834ac35f2ffdb761057"
+SRC_URI = "git://github.com/discosat/DIPP.git;protocol=https;branch=yocto;rev=fb19dfdc82a21de4ae12b7e2059fae48cf30fabd"
 
 SRC_URI += " \
     git://github.com/spaceinventor/libcsp.git;protocol=https;destsuffix=git/lib/csp;name=libcsp;branch=master;rev=6d0c670ac1c31b43083ab157cd2ed66a2ae8df35 \
-    git://github.com/Lindharden/libparam.git;protocol=https;destsuffix=git/lib/param;name=libparam;branch=master;rev=22a2601a729210196f7530283661a8d3ad80230f \
+    git://github.com/discosat/libparam.git;protocol=https;destsuffix=git/lib/param;name=libparam;branch=master;rev=8215d37d1cb4be8b34c3aab7af8a7d03fae6478b \
 "
 
 S = "${WORKDIR}/git"
