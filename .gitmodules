@@ -1,4 +1,4 @@
 [submodule "custom/layers/meta-disco-camera"]
 	path = custom/layers/meta-disco-camera
-	url = https://github.com/ivaroli/meta-disco-camera.git
-	branch = main
+	url = https://github.com/discosat/meta-disco-camera.git
+	branch = dtp
