@@ -1,7 +1,7 @@
 DESCRIPTION = "Cubesat Space Protocol (CSP)"
 SECTION = "pipeline"
 LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=2915dc85ab8fd26629e560d023ef175c"
 
 SRC_URI = "https://github.com/spaceinventor/libcsp.git;branch=master"
 SRCREV = "7ba36fb06ec21a5ade61672c2a55e3917619f58f"

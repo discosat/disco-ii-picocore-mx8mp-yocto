@@ -3,11 +3,11 @@ SECTION = "pipeline"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-SRC_URI = "https://github.com/discosat/DIPP.git;branch=dtp;rev=6221cbdf74e09c3f26ec057ca68cf62c60f8c0c0"
+SRC_URI = "https://github.com/discosat/DIPP.git;branch=dtp;rev=a09c1bd98d90fe68ba69e165f1c0f8a7a5bfc790"
 
 SRC_URI += " \
     https://github.com/spaceinventor/libcsp.git;destsuffix=git/lib/csp;name=libcsp;branch=master;rev=7ba36fb06ec21a5ade61672c2a55e3917619f58f \
-    https://github.com/discosat/libparam.git;destsuffix=git/lib/param;name=libparam;branch=dtp;rev=fd63088602ab23012cdb8b5eccf074522f61f310 \
+    https://github.com/discosat/libparam.git;destsuffix=git/lib/param;name=libparam;branch=master;rev=768970c6320a455250ddd88903bbd9f58db81216 \
     https://github.com/discosat/libdtp.git;destsuffix=git/lib/dtp;name=libdtp;branch=master;rev=504e2cd3bdffeec7b092895c564b6af947a6008f \
 "
 

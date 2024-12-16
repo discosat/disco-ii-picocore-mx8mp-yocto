@@ -9,7 +9,7 @@ inherit cmake pkgconfig
 DEPENDS = "highway brotli"
 
 SRC_URI = " \
-    gitsm://github.com/libjxl/libjxl.git;nobranch=1 \
+    gitsm://github.com/libjxl/libjxl.git;protocol=https;nobranch=1 \
 "
 
 PV = "0.10.2"

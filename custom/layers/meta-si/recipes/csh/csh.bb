@@ -1,15 +1,15 @@
 DESCRIPTION = "CSP Shell (csh)"
 SECTION = "csh"
 LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://README.md;md5=7da34418d8afbbe639035a9f7f4053f3"
+LIC_FILES_CHKSUM = "file://README.md;md5=6d605ad2c2fa2e72d8ad3a27b647ebcd"
 
-SRC_URI = "https://github.com/spaceinventor/csh.git;branch=master;rev=fe0fb1a6585810308c762f4ece2112f3e51fd611"
+SRC_URI = "https://github.com/spaceinventor/csh.git;branch=master;rev=6cc787e6b8d1fb17b82bb4810e10d42770445f20"
 
 SRC_URI += " \
-    https://github.com/spaceinventor/libcsp.git;destsuffix=git/lib/csp;name=libcsp;branch=master;rev=544635f292b7a15ea46b95cd2861102129c329e7 \
-    https://github.com/spaceinventor/libparam.git;destsuffix=git/lib/param;name=libparam;branch=master;rev=fdf62e155a965df99a1012174677c6f2958a7e4f \
-    https://github.com/spaceinventor/slash.git;destsuffix=git/lib/slash;name=slash;branch=master;rev=6084abc9a64edd72e2f4ad50914bcacb2194c4a5 \
-    https://github.com/yaml/libyaml.git;destsuffix=git/lib/yaml;name=yaml;branch=master;rev=f8f760f7387d2cc56a2fc7b1be313a3bf3f7f58c \
+    https://github.com/spaceinventor/libcsp.git;destsuffix=git/lib/csp;name=libcsp;branch=master;rev=7ba36fb06ec21a5ade61672c2a55e3917619f58f \
+    https://github.com/discosat/libparam.git;destsuffix=git/lib/param;name=libparam;branch=master;rev=768970c6320a455250ddd88903bbd9f58db81216 \
+    https://github.com/spaceinventor/slash.git;destsuffix=git/lib/slash;name=slash;branch=master;rev=8858d39be041d2de4585dfee4dcd59b31eea7d1d \
+    https://github.com/yaml/libyaml.git;destsuffix=git/lib/yaml;name=yaml;branch=master;rev=840b65c40675e2d06bf40405ad3f12dec7f35923 \
 "
 
 S = "${WORKDIR}/git"
