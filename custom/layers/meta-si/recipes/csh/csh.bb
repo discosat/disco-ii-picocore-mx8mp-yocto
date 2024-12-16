@@ -3,13 +3,13 @@ SECTION = "csh"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://README.md;md5=7da34418d8afbbe639035a9f7f4053f3"
 
-SRC_URI = "git://github.com/spaceinventor/csh.git;protocol=https;branch=master;rev=fe0fb1a6585810308c762f4ece2112f3e51fd611"
+SRC_URI = "https://github.com/spaceinventor/csh.git;branch=master;rev=fe0fb1a6585810308c762f4ece2112f3e51fd611"
 
 SRC_URI += " \
-    git://github.com/spaceinventor/libcsp.git;protocol=https;destsuffix=git/lib/csp;name=libcsp;branch=master;rev=544635f292b7a15ea46b95cd2861102129c329e7 \
-    git://github.com/spaceinventor/libparam.git;protocol=https;destsuffix=git/lib/param;name=libparam;branch=master;rev=fdf62e155a965df99a1012174677c6f2958a7e4f \
-    git://github.com/spaceinventor/slash.git;protocol=https;destsuffix=git/lib/slash;name=slash;branch=master;rev=6084abc9a64edd72e2f4ad50914bcacb2194c4a5 \
-    git://github.com/yaml/libyaml.git;protocol=https;destsuffix=git/lib/yaml;name=yaml;branch=master;rev=f8f760f7387d2cc56a2fc7b1be313a3bf3f7f58c \
+    https://github.com/spaceinventor/libcsp.git;destsuffix=git/lib/csp;name=libcsp;branch=master;rev=544635f292b7a15ea46b95cd2861102129c329e7 \
+    https://github.com/spaceinventor/libparam.git;destsuffix=git/lib/param;name=libparam;branch=master;rev=fdf62e155a965df99a1012174677c6f2958a7e4f \
+    https://github.com/spaceinventor/slash.git;destsuffix=git/lib/slash;name=slash;branch=master;rev=6084abc9a64edd72e2f4ad50914bcacb2194c4a5 \
+    https://github.com/yaml/libyaml.git;destsuffix=git/lib/yaml;name=yaml;branch=master;rev=f8f760f7387d2cc56a2fc7b1be313a3bf3f7f58c \
 "
 
 S = "${WORKDIR}/git"
