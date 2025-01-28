@@ -71,4 +71,4 @@ send "y\r"\n\
 expect eof' > setup.exp
 RUN chmod +x setup.exp && ./setup.exp
 
-CMD chmod +x /custom/start.sh && /custom/start.sh
+CMD sudo chmod +x /custom/start.sh && /custom/start.sh
