@@ -27,7 +27,13 @@ source setup-environment build-fsimx8mp-fus-imx-wayland
 
 ##### Build the image #####
 
+bitbake -c clean pipeline
 bitbake disco-fus-image
+
+##### Build the SDK #####
+
+# bitbake -c clean gdb-cross-canadian-aarch64
+bitbake disco-fus-image -c populate_sdk
 
 ##### Prepare deploy volume #####
 

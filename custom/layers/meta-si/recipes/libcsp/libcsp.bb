@@ -3,8 +3,8 @@ SECTION = "CSH"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=2915dc85ab8fd26629e560d023ef175c"
 
-SRC_URI = "git://github.com/spaceinventor/libcsp.git;protocol=https;branch=master"
-SRCREV = "544635f292b7a15ea46b95cd2861102129c329e7"
+SRC_URI = "git://github.com/spaceinventor/libcsp.git;protocol=https;nobranch=1;rev=544635f292b7a15ea46b95cd2861102129c329e7"
+# SRCREV = "544635f292b7a15ea46b95cd2861102129c329e7"
 
 S = "${WORKDIR}/git"
 B = "${S}/builddir"

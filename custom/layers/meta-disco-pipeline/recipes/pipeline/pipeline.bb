@@ -3,11 +3,12 @@ SECTION = "pipeline"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-SRC_URI = "git://github.com/discosat/DIPP.git;protocol=https;branch=yocto;rev=fb19dfdc82a21de4ae12b7e2059fae48cf30fabd"
+SRC_URI = "git://github.com/discosat/DIPP.git;protocol=https;nobranch=1;rev=d8c01f4ae6811f75edf5ac422437383e797f3053"
 
 SRC_URI += " \
-    git://github.com/spaceinventor/libcsp.git;protocol=https;destsuffix=git/lib/csp;name=libcsp;branch=master;rev=6d0c670ac1c31b43083ab157cd2ed66a2ae8df35 \
-    git://github.com/discosat/libparam.git;protocol=https;destsuffix=git/lib/param;name=libparam;branch=master;rev=8215d37d1cb4be8b34c3aab7af8a7d03fae6478b \
+    git://github.com/spaceinventor/libcsp.git;protocol=https;destsuffix=git/lib/csp;name=libcsp;nobranch=1;rev=6d0c670ac1c31b43083ab157cd2ed66a2ae8df35 \
+    git://github.com/discosat/libparam.git;protocol=https;destsuffix=git/lib/param;name=libparam;nobranch=1;rev=8215d37d1cb4be8b34c3aab7af8a7d03fae6478b \
+    git://github.com/discosat/libdtp.git;protocol=https;destsuffix=git/lib/dtp;name=libdtp;nobranch=1;rev=504e2cd3bdffeec7b092895c564b6af947a6008f \
 "
 
 S = "${WORKDIR}/git"
@@ -43,6 +44,10 @@ do_configure() {
 
     export CFLAGS="${TARGET_CC_ARCH} -fstack-protector-strong -O2 -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Werror=format-security --sysroot=${STAGING_DIR_TARGET} -I${WORKDIR}/git/include"
     export CXXFLAGS="${CFLAGS}"
+
+    cd ${WORKDIR}/git/lib/dtp
+    git submodule update --init --recursive
+    cd ${WORKDIR}
 
     meson setup ${S} ${B} --cross-file ${WORKDIR}/cross.txt -Dprefix=${D}${prefix}
 }
