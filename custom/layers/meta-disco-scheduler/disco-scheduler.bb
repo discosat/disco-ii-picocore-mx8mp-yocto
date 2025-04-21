@@ -5,11 +5,11 @@ LIC_FILES_CHKSUM = "file://COPYING-BSD-3;md5=0858ec9c7a80c4a2cf16e4f825a2cc91"
 
 SRC_URI = "git://github.com/discosat/disco-ii-cortex-m7-scheduler.git;protocol=https;branch=master \
            https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-arm-none-eabi-10.3-2021.10-x86_64-linux.tar.bz2;name=gcc-arm-none-eabi \
-           git://github.com/spaceinventor/libcsp.git;protocol=https;destsuffix=git/lib/csp;name=libcsp;branch=master \
+           git://github.com/spaceinventor/libcsp.git;protocol=https;destsuffix=git/lib/csp;name=libcsp;branch=master;nobranch=1 \
            git://github.com/spaceinventor/libparam.git;protocol=https;destsuffix=git/lib/param;name=libparam;branch=master \
            git://github.com/discosat/csp_proc.git;protocol=https;destsuffix=git/lib/csp_proc;name=csp_proc;branch=main"
 
-SRCREV = "821999c8f77075fcfcbb1f671cf0a9abff5edba9"
+SRCREV = "2fcf9b80dd6899a39daa9af22a894dfc42e7f23d"
 SRCREV_libcsp = "544635f292b7a15ea46b95cd2861102129c329e7"
 SRCREV_libparam = "fdf62e155a965df99a1012174677c6f2958a7e4f"
 SRCREV_csp_proc = "edac3dd42e089486449b0fc1eb878b78ec7a6320"
