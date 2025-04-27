@@ -22,8 +22,11 @@ cp /custom/patch/scons.bbclass /build/yocto-fus/sources/poky/meta/classes/scons.
 if [ -f "/build/yocto-fus/sources/meta-disco-camera/recipes/libcsp/libcsp.bb" ]; then rm /build/yocto-fus/sources/meta-disco-camera/recipes/libcsp/libcsp.bb; fi
 if [ -f "/build/yocto-fus/sources/meta-disco-pipeline/recipes/libcsp/libcsp.bb" ]; then rm /build/yocto-fus/sources/meta-disco-pipeline/recipes/libcsp/libcsp.bb; fi
 
-cd /build/yocto-fus/
-source setup-environment build-fsimx8mp-fus-imx-wayland
+cd /build/yocto-fus
+MACHINE=fsimx8mp 
+DISTRO=fus-imx-wayland 
+source sources/base/setup-environment build-fsimx8mp-fus-imx-wayland
+
 
 ##### Build the image #####
 

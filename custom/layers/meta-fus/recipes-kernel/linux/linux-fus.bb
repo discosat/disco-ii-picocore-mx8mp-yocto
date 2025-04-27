@@ -15,7 +15,7 @@ COMPATIBLE_MACHINE = "(mx6|mx7|mx8)"
 # SRC_URI and SRCREV are set in the bbappend file
 
 S = "${WORKDIR}/git"
-PV = "+git${SRCPV}"
+PV = "+git${SRCREV}"
 
 # We need to pass it as param since kernel might support more then one
 # machine, with different entry points

@@ -7,7 +7,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=2b42edef8fa55315f34f2370b4715ca9"
 inherit cmake
 
 SRC_URI = " \
-    https://github.com/google/highway.git;branch=master \
+    git://github.com/google/highway.git;protocol=https;branch=master \
 "
 
 PV = "1.1.0"
