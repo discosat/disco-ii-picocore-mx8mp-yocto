@@ -10,8 +10,8 @@ SRC_URI = "git://github.com/discosat/disco-ii-cortex-m7-scheduler.git;protocol=h
            git://github.com/discosat/csp_proc.git;protocol=https;destsuffix=git/lib/csp_proc;name=csp_proc;branch=main"
 
 SRCREV = "2fcf9b80dd6899a39daa9af22a894dfc42e7f23d"
-SRCREV_libcsp = "544635f292b7a15ea46b95cd2861102129c329e7"
-SRCREV_libparam = "fdf62e155a965df99a1012174677c6f2958a7e4f"
+SRCREV_libcsp = "f0835bff94d44a70adb0e0dcd003c16870ba104e"
+SRCREV_libparam = "59d3eb12d562582e37140e470afb71ce9bb18f8f"
 SRCREV_csp_proc = "edac3dd42e089486449b0fc1eb878b78ec7a6320"
 
 SRC_URI[gcc-arm-none-eabi.sha256sum] = "97dbb4f019ad1650b732faffcc881689cedc14e2b7ee863d390e0a41ef16c9a3"

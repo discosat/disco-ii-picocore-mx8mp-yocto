@@ -45,8 +45,8 @@ RUN apt-get update && apt-get install -y \
     ca-certificates  \
  && pip3 install pylint \
  && ln -s /usr/bin/python3 /usr/bin/python \
- && locale-gen en_US.UTF-8
-
+ && locale-gen en_US.UTF-8 \
+ 
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8

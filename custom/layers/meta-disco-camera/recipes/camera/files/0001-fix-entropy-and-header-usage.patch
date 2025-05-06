@@ -1,0 +1,673 @@
+diff --git a/include/camera_control/capture_controller.hpp b/include/camera_control/capture_controller.hpp
+index 4ad8603..976e593 100644
+--- a/include/camera_control/capture_controller.hpp
++++ b/include/camera_control/capture_controller.hpp
+@@ -2,18 +2,18 @@
+ #define CAPTURE_CONTROLLER_H
+ 
+ #include <iostream>
+-#include <string>
+ #include <sstream>
+-#include <vector>
++#include <string>
+ #include <type_traits>
++#include <vector>
+ 
+ #include "camera_controller.hpp"
+-#include "vimba_controller.hpp"
+-#include "test_controller.hpp"
+-#include "ir_controller.hpp"
+ #include "common.hpp"
+ #include "errors.hpp"
++#include "ir_controller.hpp"
+ #include "message_queue.hpp"
++#include "test_controller.hpp"
++#include "vimba_controller.hpp"
+ 
+ // capture parameters defaults
+ #define EXPOSURE_DEFAULT 0
+@@ -25,120 +25,123 @@
+ 
+ // auto exposure paramteres
+ const float MAX_EXPOSURE = 150000; // maximum allowed exposure
+-const float MAX_ENTROPY = 8; // maximum entropy achieved by 8 bits
++const float MAX_ENTROPY = 8;       // maximum entropy achieved by 8 bits
+ const size_t STEPS = 8;
+ const float EXPOSURE_START = 5000;
+ const float LEARNING_RATE = 500;
+ 
+-class CaptureController{
+-    public:
+-        CaptureController();
+-        ~CaptureController();
+-
+-        void Capture(CaptureMessage capture_instructions, u_int16_t* error);
+-
+-        static void CaptureCallback(char* capture_instructions, void* obj, u_int16_t* error) {
+-            if (obj){
+-                std::string input(capture_instructions);
+-                if(input.size() == 0){
+-                    *error = ERROR_CODE::PARSING_ERROR_MESSAGE_EMPTY;
+-                    return;
+-                }
+-
+-                CaptureMessage msg = ParseMessage(input);
+-
+-                try{
+-                    static_cast<CaptureController*>(obj)->Capture(msg, error);
+-                } catch(std::exception const&){
+-                    *error = ERROR_CODE::CAPTURE_ERROR;
+-                }
+-            }
+-        }
+-
+-        static std::unique_ptr<CameraController> CreateControllerInstance(CameraType type){
+-            switch (type)
+-            {
+-            case CameraType::VMB:
+-                return std::make_unique<VimbaController>();
+-                break;
+-            
+-            case CameraType::IR:
+-                return std::make_unique<IRController>();
+-                break;
+-
+-            case CameraType::TEST:
+-                return std::make_unique<TestController>();
+-                break;
+-            
+-            case CameraType::Unkown:
+-                return nullptr;
+-                break;
+-            
+-            default:
+-                return std::make_unique<VimbaController>();
+-                break;
+-            }
+-        }
+-
+-        static CaptureMessage ParseMessage(const std::string& input) {
+-            CaptureMessage message;
+-            message.Exposure = EXPOSURE_DEFAULT;
+-            message.ISO = ISO_DEFAULT;
+-            message.Interval = INTERVAL_DEFAULT;
+-            message.NumberOfImages = NUM_IMAGES_DEFAULT;
+-            message.CameraId = "";
+-            message.Type = CAMERA_TYPE_DEFAULT;
+-            message.PipelineId = PIPELINE_ID_DEFAULT;
+-            message.OBID = 0;
+-
+-            std::vector<std::string> pairs;
+-            std::stringstream ss(input);
+-            std::string pair;
+-            while (std::getline(ss, pair, ';')) {
+-                pairs.push_back(pair);
+-            }
+-
+-            for (const auto& p : pairs) {
+-                std::istringstream iss(p);
+-                std::string variable, value;
+-                std::getline(iss, variable, '=');
+-                std::getline(iss, value);
+-                
+-                variable.erase(0, variable.find_first_not_of(" \t\n\r\f\v"));
+-                variable.erase(variable.find_last_not_of(" \t\n\r\f\v") + 1);
+-                value.erase(0, value.find_first_not_of(" \t\n\r\f\v"));
+-                value.erase(value.find_last_not_of(" \t\n\r\f\v") + 1);
+-                
+-                // Check variable name and assign value -> kinda dirty...
+-                if (variable == "NUM_IMAGES") {
+-                    message.NumberOfImages = std::stoi(value);
+-                } else if (variable == "ISO") {
+-                    message.ISO = std::stof(value);
+-                } else if (variable == "INTERVAL") {
+-                    message.Interval = std::stoi(value);
+-                } else if (variable == "EXPOSURE") {
+-                    message.Exposure = std::stoi(value);
+-                } else if (variable == "CAMERA_ID") {
+-                    message.CameraId = std::string(value);
+-                } else if (variable == "CAMERA_TYPE") {
+-                    message.Type = StringToCameraType(value);
+-                } else if (variable == "PIPELINE_ID") {
+-                    message.PipelineId = std::stoi(value);
+-                } else if (variable == "OBID") {
+-                    message.OBID == std::stoi(value);
+-                } else {
+-                    continue;
+-                }
+-            }
+-            return message;
+-        }
+-    
+-    private:
+-        MessageQueue* mq;
+-
+-        uchar* createImageMessageData(std::vector<Image> &images, CaptureMessage capture_instructions, size_t &size);
+-        double calculateEntropy(Image image);
+-        size_t setExposure(CameraController *controller, CaptureMessage cap_msg);
++class CaptureController {
++public:
++  CaptureController();
++  ~CaptureController();
++
++  void Capture(CaptureMessage capture_instructions, u_int16_t *error);
++
++  static void CaptureCallback(char *capture_instructions, void *obj,
++                              u_int16_t *error) {
++    if (obj) {
++      std::string input(capture_instructions);
++      if (input.size() == 0) {
++        *error = ERROR_CODE::PARSING_ERROR_MESSAGE_EMPTY;
++        return;
++      }
++
++      CaptureMessage msg = ParseMessage(input);
++
++      try {
++        static_cast<CaptureController *>(obj)->Capture(msg, error);
++      } catch (std::exception const &) {
++        *error = ERROR_CODE::CAPTURE_ERROR;
++      }
++    }
++  }
++
++  static std::unique_ptr<CameraController>
++  CreateControllerInstance(CameraType type) {
++    switch (type) {
++    case CameraType::VMB:
++      return std::make_unique<VimbaController>();
++      break;
++
++    case CameraType::IR:
++      return std::make_unique<IRController>();
++      break;
++
++    case CameraType::TEST:
++      return std::make_unique<TestController>();
++      break;
++
++    case CameraType::Unkown:
++      return nullptr;
++      break;
++
++    default:
++      return std::make_unique<VimbaController>();
++      break;
++    }
++  }
++
++  static CaptureMessage ParseMessage(const std::string &input) {
++    CaptureMessage message;
++    message.Exposure = EXPOSURE_DEFAULT;
++    message.ISO = ISO_DEFAULT;
++    message.Interval = INTERVAL_DEFAULT;
++    message.NumberOfImages = NUM_IMAGES_DEFAULT;
++    message.CameraId = "";
++    message.Type = CAMERA_TYPE_DEFAULT;
++    message.PipelineId = PIPELINE_ID_DEFAULT;
++    message.OBID = 0;
++
++    std::vector<std::string> pairs;
++    std::stringstream ss(input);
++    std::string pair;
++    while (std::getline(ss, pair, ';')) {
++      pairs.push_back(pair);
++    }
++
++    for (const auto &p : pairs) {
++      std::istringstream iss(p);
++      std::string variable, value;
++      std::getline(iss, variable, '=');
++      std::getline(iss, value);
++
++      variable.erase(0, variable.find_first_not_of(" \t\n\r\f\v"));
++      variable.erase(variable.find_last_not_of(" \t\n\r\f\v") + 1);
++      value.erase(0, value.find_first_not_of(" \t\n\r\f\v"));
++      value.erase(value.find_last_not_of(" \t\n\r\f\v") + 1);
++
++      // Check variable name and assign value -> kinda dirty...
++      if (variable == "NUM_IMAGES") {
++        message.NumberOfImages = std::stoi(value);
++      } else if (variable == "ISO") {
++        message.ISO = std::stof(value);
++      } else if (variable == "INTERVAL") {
++        message.Interval = std::stoi(value);
++      } else if (variable == "EXPOSURE") {
++        message.Exposure = std::stoi(value);
++      } else if (variable == "CAMERA_ID") {
++        message.CameraId = std::string(value);
++      } else if (variable == "CAMERA_TYPE") {
++        message.Type = StringToCameraType(value);
++      } else if (variable == "PIPELINE_ID") {
++        message.PipelineId = std::stoi(value);
++      } else if (variable == "OBID") {
++        message.OBID = static_cast<u_int>(std::stoi(value));
++      } else {
++        continue;
++      }
++    }
++    return message;
++  }
++
++private:
++  MessageQueue *mq;
++
++  uchar *createImageMessageData(std::vector<Image> &images,
++                                CaptureMessage capture_instructions,
++                                size_t &size);
++  double calculateEntropy(Image image);
++  size_t setExposure(CameraController *controller, CaptureMessage cap_msg);
+ };
+ 
+-#endif
+\ No newline at end of file
++#endif
+diff --git a/src/camera_control/capture_controller.cpp b/src/camera_control/capture_controller.cpp
+index 4357b9b..9e7767d 100644
+--- a/src/camera_control/capture_controller.cpp
++++ b/src/camera_control/capture_controller.cpp
+@@ -1,206 +1,224 @@
+ #include "capture_controller.hpp"
+-#include <iostream>
+-#include <memory>
+ #include "errors.hpp"
+-#include <cmath>
+ #include "metadata.pb.hpp"
++#include <cmath>
++#include <iostream>
++#include <memory>
+ 
+-CaptureController::CaptureController(){
+-    this->mq = new MessageQueue();
+-}
+-
+-CaptureController::~CaptureController(){
+-    delete this->mq;
++CaptureController::CaptureController() { this->mq = new MessageQueue(); }
++
++CaptureController::~CaptureController() { delete this->mq; }
++
++uchar *
++CaptureController::createImageMessageData(std::vector<Image> &images,
++                                          CaptureMessage capture_instructions,
++                                          size_t &size) {
++  u_char *total_buffer;
++  std::vector<u_char *> image_buffers;
++  std::vector<size_t> image_buffer_sizes;
++  size_t total_size = 0;
++
++  for (size_t i = 0; i < images.size(); i++) {
++    Metadata metadata;
++
++    metadata.set_timestamp(images.at(i).timestamp);
++    metadata.set_bits_pixel(images.at(i).bpp);
++    metadata.set_channels(images.at(i).channels);
++    metadata.set_width(images.at(i).width);
++    metadata.set_height(images.at(i).height);
++    metadata.set_size(images.at(i).size);
++    metadata.set_camera(capture_instructions.CameraId);
++    metadata.set_obid(capture_instructions.OBID);
++
++    uint metadataSize = (uint)metadata.ByteSizeLong();
++    uchar *metadataBuffer = new uchar[metadataSize];
++    metadata.SerializeToArray(metadataBuffer, metadataSize);
++
++    size_t buffer_size =
++        sizeof(metadataSize) + metadataSize + images.at(i).size;
++    unsigned char *buffer = new uchar[buffer_size];
++
++    std::memcpy(buffer, &metadataSize,
++                sizeof(metadataSize)); // write the size of the metadata in the
++                                       // first 4 bytes
++    std::memcpy(&buffer[sizeof(metadataSize)], metadataBuffer,
++                metadataSize); // write the metadata
++    std::memcpy(&buffer[sizeof(metadataSize) + metadataSize], images.at(i).data,
++                images.at(i).size); // write the image data
++
++    delete[] images.at(i).data;
++    delete[] metadataBuffer;
++
++    image_buffers.push_back(buffer);
++    image_buffer_sizes.push_back(buffer_size);
++    total_size += buffer_size;
++  }
++
++  total_buffer = new uchar[total_size];
++  size_t offset = 0;
++
++  for (size_t i = 0; i < image_buffers.size(); i++) {
++    std::memcpy(
++        &total_buffer[offset], image_buffers.at(i),
++        image_buffer_sizes.at(i)); // combine all buffers into a single buffer
++    offset += image_buffer_sizes.at(i);
++    delete[] image_buffers.at(i);
++  }
++
++  size = total_size;
++  return total_buffer;
+ }
+ 
+-uchar* CaptureController::createImageMessageData(std::vector<Image> &images, CaptureMessage capture_instructions, size_t &size){
+-    u_char* total_buffer;
+-    std::vector<u_char*> image_buffers;
+-    std::vector<size_t> image_buffer_sizes;
+-    size_t total_size = 0;
+-
+-    for (size_t i = 0; i < images.size(); i++){
+-        Metadata metadata;
+-
+-        metadata.set_timestamp(images.at(i).timestamp);
+-        metadata.set_bits_pixel(images.at(i).bpp);
+-        metadata.set_channels(images.at(i).channels);
+-        metadata.set_width(images.at(i).width);
+-        metadata.set_height(images.at(i).height);
+-        metadata.set_size(images.at(i).size);
+-        metadata.set_camera(capture_instructions.CameraId);
+-        metadata.set_obid(capture_instructions.OBID);
+-
+-        uint metadataSize = (uint)metadata.ByteSizeLong();
+-        uchar* metadataBuffer = new uchar[metadataSize];
+-        metadata.SerializeToArray(metadataBuffer, metadataSize);
+-        
+-        size_t buffer_size = sizeof(metadataSize) + metadataSize + images.at(i).size;
+-        unsigned char* buffer = new uchar[buffer_size];
+-
+-        std::memcpy(buffer, &metadataSize, sizeof(metadataSize)); // write the size of the metadata in the first 4 bytes
+-        std::memcpy(&buffer[sizeof(metadataSize)], metadataBuffer, metadataSize); // write the metadata
+-        std::memcpy(&buffer[sizeof(metadataSize)+metadataSize], images.at(i).data, images.at(i).size); // write the image data
+-
+-        delete[] images.at(i).data;
+-        delete[] metadataBuffer;
+-        
+-        image_buffers.push_back(buffer);
+-        image_buffer_sizes.push_back(buffer_size);
+-        total_size += buffer_size;
+-    }
+-
+-    total_buffer = new uchar[total_size];
+-    size_t offset = 0;
+-
+-    for (size_t i = 0; i < image_buffers.size(); i++){
+-        std::memcpy(&total_buffer[offset], image_buffers.at(i), image_buffer_sizes.at(i)); // combine all buffers into a single buffer
+-        offset += image_buffer_sizes.at(i);
+-        delete[] image_buffers.at(i);
++void CaptureController::Capture(CaptureMessage capture_instructions,
++                                u_int16_t *error) {
++  if (capture_instructions.NumberOfImages == 0) {
++    *error = ERROR_CODE::PARSING_ERROR_NUM_IMAGES_INVALID;
++    return;
++  }
++
++  std::cout << "New capture instructions:" << std::endl;
++  std::cout << "\tCamera: \"" << capture_instructions.CameraId << "\""
++            << std::endl;
++  std::cout << "\tExposure: " << capture_instructions.Exposure << std::endl;
++  std::cout << "\tISO: " << capture_instructions.ISO << std::endl;
++  std::cout << "\tNumber of images: " << capture_instructions.NumberOfImages
++            << std::endl;
++  std::cout << "\tPipeline id: " << capture_instructions.PipelineId
++            << std::endl;
++
++  std::unique_ptr<CameraController> controller =
++      CaptureController::CreateControllerInstance(capture_instructions.Type);
++
++  if (controller == nullptr) {
++    *error = ERROR_CODE::PARSING_ERROR_CAMERA_TYPE_INVALID;
++    return;
++  }
++
++  if (capture_instructions.Exposure == 0) {
++    std::cout << "Finding exposure" << std::endl;
++    capture_instructions.Exposure =
++        setExposure(controller.get(), capture_instructions);
++    std::cout << "Found exposure: " << capture_instructions.Exposure
++              << std::endl;
++  }
++
++  auto images = controller->Capture(capture_instructions, error);
++
++  if (*error != ERROR_CODE::SUCCESS) {
++    std::cerr << "Error code: " << *error << std::endl;
++    for (size_t i = 0; i < images.size(); i++) {
++      delete[] images.at(i).data;
+     }
+-
+-    size = total_size;
+-    return total_buffer;
++    return;
++  }
++
++  size_t size = 0;
++  unsigned char *total_buffer =
++      this->createImageMessageData(images, capture_instructions, size);
++
++  ImageBatch batch;
++  batch.pipeline_id = capture_instructions.PipelineId;
++  batch.num_images = capture_instructions.NumberOfImages;
++  batch.batch_size = size;
++  batch.data = total_buffer;
++
++  if (mq->SendImage(batch, error)) {
++    std::cout << "Sending image was successful" << std::endl;
++  } else {
++    std::cout << "Sending image was unsuccessful" << std::endl;
++  }
++  delete[] total_buffer;
+ }
+ 
+-void CaptureController::Capture(CaptureMessage capture_instructions, u_int16_t* error){
+-    if(capture_instructions.NumberOfImages == 0){
+-        *error = ERROR_CODE::PARSING_ERROR_NUM_IMAGES_INVALID;
+-        return;
+-    }
+-
+-    std::cout << "New capture instructions:" << std::endl;
+-    std::cout << "\tCamera: \"" << capture_instructions.CameraId << "\"" << std::endl;
+-    std::cout << "\tExposure: " << capture_instructions.Exposure << std::endl;
+-    std::cout << "\tISO: " << capture_instructions.ISO << std::endl;
+-    std::cout  << "\tNumber of images: " << capture_instructions.NumberOfImages << std::endl;
+-    std::cout  << "\tPipeline id: " << capture_instructions.PipelineId << std::endl;
+-    
+-    std::unique_ptr<CameraController> controller = CaptureController::CreateControllerInstance(capture_instructions.Type);
+-
+-    if(controller == nullptr){
+-        *error = ERROR_CODE::PARSING_ERROR_CAMERA_TYPE_INVALID;
+-        return;
++double CaptureController::calculateEntropy(Image image) {
++  if (image.size == 0) {
++    return 0.0;
++  }
++
++  int hist[256] = {0};
++
++  // Calculate bytes per pixel
++  size_t bytes = image.bpp / 8;
++  if (image.bpp % 8)
++    bytes++;
++
++  // Determine value scaling
++  const size_t bpp_max = (1 << image.bpp) - 1;
++  const size_t byte_max = 255;
++  const double scale_factor = static_cast<double>(byte_max) / bpp_max;
++  const size_t total_pixels = image.size / bytes;
++
++  // Handle 8-bit or 16-bit pixels based on byte size
++  if (bytes == 2) {
++    uint16_t *data = reinterpret_cast<uint16_t *>(image.data);
++    for (size_t i = 0; i < total_pixels; i++) {
++      uint8_t value = static_cast<uint8_t>(data[i] * scale_factor);
++      hist[value]++;
+     }
+-
+-    if(capture_instructions.Exposure == 0){
+-        std::cout << "Finding exposure" << std::endl;
+-        capture_instructions.Exposure = setExposure(controller.get(), capture_instructions);
+-        std::cout << "Found exposure: " << capture_instructions.Exposure << std::endl;
++  } else {
++    uint8_t *data = reinterpret_cast<uint8_t *>(image.data);
++    for (size_t i = 0; i < total_pixels; i++) {
++      uint8_t value = static_cast<uint8_t>(data[i] * scale_factor);
++      hist[value]++;
+     }
+-
+-    auto images = controller->Capture(capture_instructions, error);
+-
+-    if(*error != ERROR_CODE::SUCCESS){
+-        std::cerr << "Error code: " << *error << std::endl;
+-        for (size_t i = 0; i < images.size(); i++){
+-            delete[] images.at(i).data;
+-        }
+-        return;
++  }
++
++  // Calculate entropy
++  double total = 0.0;
++  for (uint16_t i = 0; i < 256; i++) {
++    if (hist[i] > 0) {
++      double probability = static_cast<double>(hist[i]) / total_pixels;
++      total += probability * log2(probability);
+     }
++  }
+ 
+-    size_t size = 0;
+-    unsigned char* total_buffer = this->createImageMessageData(images, capture_instructions, size);
+-
+-    ImageBatch batch;
+-    batch.pipeline_id = capture_instructions.PipelineId;
+-    batch.num_images = capture_instructions.NumberOfImages;
+-    batch.batch_size = size;
+-    batch.data = total_buffer;
+-
+-    if(mq->SendImage(batch, error)){
+-        std::cout << "Sending image was successful" << std::endl;
+-    } else {
+-        std::cout << "Sending image was unsuccessful" << std::endl;
+-    }
+-    delete[] total_buffer;
++  return -total;
+ }
+ 
+-double CaptureController::calculateEntropy(Image image) {
+-    if (image.size == 0) {
+-        return 0.0;
+-    }
++size_t CaptureController::setExposure(CameraController *controller,
++                                      CaptureMessage cap_msg) {
++  double currentExposure = EXPOSURE_START, lastEntropy = -1, lastExposure = -1,
++         slope = 1;
+ 
+-    int hist[256]={0};
++  cap_msg.NumberOfImages = 1;
++  cap_msg.Interval = 0;
+ 
+-    // needed number of bytes to store BPP
+-    size_t bytes = image.bpp/8;
+-    if(image.bpp%8)bytes++;
++  u_int16_t error = 0;
++  size_t steps = 0;
+ 
+-    // find max of BPP
+-    const size_t bpp_max = (1 << image.bpp) - 1;
+-    const size_t byte_max =  255;
++  while (currentExposure < MAX_EXPOSURE && steps < STEPS) {
++    cap_msg.Exposure = currentExposure;
++    Image img = controller->Capture(cap_msg, &error).at(0);
++    double currentEntropy = calculateEntropy(img);
+ 
+-    using UIntType = uint8_t;
++    std::cout << currentExposure << " | " << currentEntropy << std::endl;
+ 
+-    // if image data uses 2 bytes
+-    if(bytes == 2){
+-        using UIntType = uint16_t;
+-    }
++    if (lastEntropy == -1) {
++      lastEntropy = currentEntropy;
++      lastExposure = currentExposure;
+ 
+-    const double scale_factor = (1.0*byte_max)/bpp_max;
+-    const size_t total_pixels = image.size/bytes;
++      currentExposure += EXPOSURE_START;
++    } else {
++      double exposure_delta = ((double)currentExposure / MAX_EXPOSURE) -
++                              ((double)lastExposure / MAX_EXPOSURE);
++      double entropy_delta = ((double)currentEntropy / MAX_ENTROPY) -
++                             ((double)lastEntropy / MAX_ENTROPY);
++      slope = entropy_delta / exposure_delta; // normalized slope
+ 
+-    UIntType* data = reinterpret_cast<UIntType*>(image.data);
++      // no change so no need to continue
++      if (slope == 0) {
++        break;
++      }
+ 
+-    for(size_t i = 0; i < total_pixels; i++){
+-        UIntType pixel = data[i];
+-        uint8_t value = static_cast<uint8_t>(pixel * scale_factor);
+-        hist[value]++;
+-    }
++      lastEntropy = currentEntropy;
++      lastExposure = currentExposure;
+ 
+-    double total = 0.0;
+-    for(uint16_t i = 0; i < 256; i++){
+-        if(hist[i] > 0){
+-            double probability = static_cast<double>(hist[i]) / total_pixels;
+-            total += probability * log2(probability);
+-        }
++      currentExposure += LEARNING_RATE * slope;
+     }
+ 
+-    //delete[] hist;
+-    return -total;
+-}
+-
+-size_t CaptureController::setExposure(CameraController *controller, CaptureMessage cap_msg){
+-    double currentExposure = EXPOSURE_START, lastEntropy = -1, lastExposure = -1, slope = 1;
+-    
+-    cap_msg.NumberOfImages = 1;
+-    cap_msg.Interval = 0;
+-    
+-    u_int16_t error = 0;
+-    size_t steps = 0;
+-
+-    while(currentExposure < MAX_EXPOSURE && steps < STEPS){
+-        cap_msg.Exposure = currentExposure;
+-        Image img = controller->Capture(cap_msg, &error).at(0);
+-        double currentEntropy = calculateEntropy(img);
++    steps++;
++  }
+ 
+-        std::cout << currentExposure << " | " << currentEntropy << std::endl;
+-
+-        if(lastEntropy == -1){
+-            lastEntropy = currentEntropy;
+-            lastExposure = currentExposure;
+-
+-            currentExposure += EXPOSURE_START;
+-        } else {
+-            double exposure_delta = ((double)currentExposure/MAX_EXPOSURE) - ((double)lastExposure/MAX_EXPOSURE);
+-            double entropy_delta = ((double)currentEntropy/MAX_ENTROPY) - ((double)lastEntropy/MAX_ENTROPY);
+-            slope = entropy_delta/exposure_delta; // normalized slope
+-
+-            // no change so no need to continue
+-            if(slope == 0){
+-                break;
+-            }
+-
+-            lastEntropy = currentEntropy;
+-            lastExposure = currentExposure;
+-
+-            currentExposure += LEARNING_RATE*slope;
+-        }
+-
+-        steps++;
+-    }
+-
+-    std::cout << "Exp: " << currentExposure << std::endl;
+-    return std::round(currentExposure);
+-}
+\ No newline at end of file
++  std::cout << "Exp: " << currentExposure << std::endl;
++  return std::round(currentExposure);
++}

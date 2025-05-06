@@ -7,7 +7,7 @@ SRC_URI = "git://github.com/discosat/DIPP.git;protocol=https;branch=main;rev=d8c
 
 SRC_URI += " \
     git://github.com/discosat/libcsp.git;protocol=https;destsuffix=git/lib/csp;name=libcsp;branch=master;rev=6d0c670ac1c31b43083ab157cd2ed66a2ae8df35 \
-    git://github.com/discosat/libparam.git;protocol=https;destsuffix=git/lib/param;name=libparam;branch=master;rev=259fde205a3412652c11cfcdb2013d355d4bf13e \
+    git://github.com/discosat/libparam.git;protocol=https;destsuffix=git/lib/param;name=libparam;branch=master;rev=768970c6320a455250ddd88903bbd9f58db81216 \
     git://github.com/discosat/libdtp.git;protocol=https;destsuffix=git/lib/dtp;name=libdtp;branch=master;rev=504e2cd3bdffeec7b092895c564b6af947a6008f \
 "
 
