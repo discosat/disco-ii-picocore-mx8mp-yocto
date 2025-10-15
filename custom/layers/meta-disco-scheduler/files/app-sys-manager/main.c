@@ -50,8 +50,6 @@ uint16_t _can_netmask;
 param_t can_addr;
 param_t can_netmask;
 csp_iface_t* can_iface;
-#define CAN_ADDR_DEFAULT 21
-#define CAN_NETMASK_DEFAULT 8
 #define PARAMID_CAN_ADDR 21
 #define PARAMID_CAN_NETMASK 22
 PARAM_DEFINE_STATIC_VMEM(PARAMID_CAN_ADDR, can_addr, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, can_addr_callback, "", config, 0x10, "CAN interface address");
@@ -69,8 +67,8 @@ void mng_dipp_callback();
 void switch_m7_bin_callback();
 uint8_t _suspend_a53;
 uint8_t _vimba_install;
-uint8_t _mng_camera_control;
-uint8_t _mng_dipp;
+uint16_t _mng_camera_control;
+uint16_t _mng_dipp;
 uint8_t _switch_m7_bin;
 #define PARAMID_SUSPEND_A53 31
 #define PARAMID_VIMBA_INSTALL 32
@@ -79,8 +77,8 @@ uint8_t _switch_m7_bin;
 #define PARAMID_SWITCH_M7_BIN 35
 PARAM_DEFINE_STATIC_RAM(PARAMID_SUSPEND_A53, suspend_a53, PARAM_TYPE_UINT8, -1, 0, PM_CONF, suspend_a53_callback, "", &_suspend_a53, "STOP A53 cores (suspend linux)");
 PARAM_DEFINE_STATIC_RAM(PARAMID_VIMBA_INSTALL, vimba_install, PARAM_TYPE_UINT8, -1, 0, PM_CONF, vimba_install_callback, "", &_vimba_install, "Install Vimba drivers");
-PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_CAMERA_CONTROL, mng_camera_control, PARAM_TYPE_UINT8, -1, 0, PM_CONF, mng_camera_control_callback, "", &_mng_camera_control, "Start camera control as this node number (0 kills it)");
-PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_DIPP, mng_dipp, PARAM_TYPE_UINT8, -1, 0, PM_CONF, mng_dipp_callback, "", &_mng_dipp, "Start DIPP as this node number (0 kills it)");
+PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_CAMERA_CONTROL, mng_camera_control, PARAM_TYPE_UINT16, -1, 0, PM_CONF, mng_camera_control_callback, "", &_mng_camera_control, "Start camera control as this node number (0 kills it)");
+PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_DIPP, mng_dipp, PARAM_TYPE_UINT16, -1, 0, PM_CONF, mng_dipp_callback, "", &_mng_dipp, "Start DIPP as this node number (0 kills it)");
 PARAM_DEFINE_STATIC_RAM(PARAMID_SWITCH_M7_BIN, switch_m7_bin, PARAM_TYPE_UINT8, -1, 0, PM_READONLY, NULL, "", &_switch_m7_bin, "Switch Cortex-M7 binaries"); // Disabled for now
 
 // Circular buffer for standard output
@@ -167,7 +165,7 @@ void vimba_install_callback() {
 void mng_camera_control_callback() {
     char buffer[128];
     FILE *fp;
-    uint8_t param_val = param_get_uint8(&mng_camera_control);
+    uint16_t param_val = param_get_uint16(&mng_camera_control);
 
     switch (param_val) {
         case 0:  // Kill camera control
@@ -196,7 +194,7 @@ void mng_dipp_callback() {
     char buffer[128];
     FILE *fp;
 
-    uint8_t param_val = param_get_uint8(&mng_dipp);
+    uint16_t param_val = param_get_uint16(&mng_dipp);
     switch (param_val) {
         case 0:  // Kill dipp
             fp = popen("pkill -f /usr/bin/dipp 2>&1", "r");
@@ -305,7 +303,28 @@ int suspend_on_boot_read() {
     return param_val;
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+    // Default values for CAN address and netmask
+    uint16_t default_can_addr = 5421;
+    uint16_t default_can_netmask = 8;
+
+    // Print command-line arguments
+    printf("argc: %u\n", argc);
+    for (int i = 0; i < argc; i++) {
+        printf("argv[%d]: %s\n", i, argv[i]);
+    }
+
+    // Parse command-line arguments
+    if (argc >= 2) {
+        default_can_addr = (uint16_t)atoi(argv[1]);
+    }
+    if (argc >= 3) {
+        default_can_netmask = (uint16_t)atoi(argv[2]);
+    }
+
+    printf("Using CAN address: %u, netmask: %u\n", default_can_addr, default_can_netmask);
+    printf("\nbootmsg\n");
+
     csp_conf.hostname = "app-sys-manager";
     csp_conf.model = "PicoCoreMX8MP-Cortex-A53";
 	csp_conf.version = 2;
@@ -334,11 +353,11 @@ int main(void) {
     _can_addr = param_get_uint16(&can_addr);
     _can_netmask = param_get_uint16(&can_netmask);
     if (_can_addr == 0) {
-        _can_addr = CAN_ADDR_DEFAULT;
+        _can_addr = default_can_addr;
         param_set_uint16(&can_addr, _can_addr);
     }
     if (_can_netmask == 0) {
-        _can_netmask = CAN_NETMASK_DEFAULT;
+        _can_netmask = default_can_netmask;
         param_set_uint16(&can_netmask, _can_netmask);
     }
 
