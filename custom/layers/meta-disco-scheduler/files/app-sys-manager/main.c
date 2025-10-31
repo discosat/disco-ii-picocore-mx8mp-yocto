@@ -43,19 +43,19 @@
 extern vmem_t vmem_config;
 VMEM_DEFINE_FILE(config, "config", "sys-man-config.vmem", 1000);
 
-void can_addr_callback();
-void can_netmask_callback();
-uint16_t _can_addr;
-uint16_t _can_netmask;
-param_t can_addr;
-param_t can_netmask;
-csp_iface_t* can_iface;
-#define CAN_ADDR_DEFAULT 21
-#define CAN_NETMASK_DEFAULT 8
-#define PARAMID_CAN_ADDR 21
-#define PARAMID_CAN_NETMASK 22
-PARAM_DEFINE_STATIC_VMEM(PARAMID_CAN_ADDR, can_addr, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, can_addr_callback, "", config, 0x10, "CAN interface address");
-PARAM_DEFINE_STATIC_VMEM(PARAMID_CAN_NETMASK, can_netmask, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, can_netmask_callback, "", config, 0x12, "CAN interface netmask");
+void interface_addr_callback();
+void interface_netmask_callback();
+uint16_t _interface_addr;
+uint16_t _interface_netmask;
+param_t interface_addr;
+param_t interface_netmask;
+csp_iface_t* phy_iface;
+#define INT_ADDR_DEFAULT 21
+#define INT_NETMASK_DEFAULT 8
+#define PARAMID_INTERFACE_ADDR 21
+#define PARAMID_INTERFACE_NETMASK 22
+PARAM_DEFINE_STATIC_VMEM(PARAMID_INTERFACE_ADDR, interface_addr, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, interface_addr_callback, "", config, 0x10, "Interface address");
+PARAM_DEFINE_STATIC_VMEM(PARAMID_INTERFACE_NETMASK, interface_netmask, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, interface_netmask_callback, "", config, 0x12, "Interface netmask");
 
 void suspend_on_boot_callback();
 param_t suspend_on_boot;
@@ -72,11 +72,14 @@ uint8_t _vimba_install;
 uint8_t _mng_camera_control;
 uint8_t _mng_dipp;
 uint8_t _switch_m7_bin;
+uint8_t _interface_type;
 #define PARAMID_SUSPEND_A53 31
 #define PARAMID_VIMBA_INSTALL 32
 #define PARAMID_MNG_CAMERA_CONTROL 33
 #define PARAMID_MNG_DIPP 34
 #define PARAMID_SWITCH_M7_BIN 35
+#define PARAMID_INTERFACE_TYPE 42
+PARAM_DEFINE_STATIC_RAM(PARAMID_INTERFACE_TYPE, interface_type, PARAM_TYPE_UINT8, -1, 0, PM_SYSCONF, NULL, "", &_interface_type, "Interface type: 0=CAN, 1=KISS");
 PARAM_DEFINE_STATIC_RAM(PARAMID_SUSPEND_A53, suspend_a53, PARAM_TYPE_UINT8, -1, 0, PM_CONF, suspend_a53_callback, "", &_suspend_a53, "STOP A53 cores (suspend linux)");
 PARAM_DEFINE_STATIC_RAM(PARAMID_VIMBA_INSTALL, vimba_install, PARAM_TYPE_UINT8, -1, 0, PM_CONF, vimba_install_callback, "", &_vimba_install, "Install Vimba drivers");
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_CAMERA_CONTROL, mng_camera_control, PARAM_TYPE_UINT8, -1, 0, PM_CONF, mng_camera_control_callback, "", &_mng_camera_control, "Start camera control as this node number (0 kills it)");
@@ -135,13 +138,13 @@ uint32_t serial_get(void) {
     return hash;
 }
 
-void can_addr_callback() {
-    _can_addr = param_get_uint16(&can_addr);
+void interface_addr_callback() {
+    _interface_addr = param_get_uint16(&interface_addr);
     //can_iface->addr = _can_addr;
 }
 
-void can_netmask_callback() {
-    _can_netmask = param_get_uint16(&can_netmask);
+void interface_netmask_callback() {
+    _interface_netmask = param_get_uint16(&interface_netmask);
     //can_iface->netmask = _can_netmask;
 }
 
@@ -197,6 +200,7 @@ void mng_dipp_callback() {
     FILE *fp;
 
     uint8_t param_val = param_get_uint8(&mng_dipp);
+    uint8_t interface_type_to_set = param_get_uint8(&interface_type);
     switch (param_val) {
         case 0:  // Kill dipp
             fp = popen("pkill -f /usr/bin/dipp 2>&1", "r");
@@ -210,7 +214,11 @@ void mng_dipp_callback() {
             break;
         default:  // Start dipp as node number `mng_dipp`
             char cmdbuf[128];
-            sprintf(cmdbuf, "/usr/bin/dipp -i CAN -p can0 -a %u 2>&1", param_val);
+            if (interface_type_to_set == 1) {
+                sprintf(cmdbuf, "/usr/bin/dipp -i KISS -p /dev/ttyKISS0 -a %u 2>&1", param_val);
+            } else {
+                sprintf(cmdbuf, "/usr/bin/dipp -i CAN -p can0 -a %u 2>&1", param_val);
+            }
             fp = popen(cmdbuf, "r");
             if (fp == NULL) {
                 csp_print("Failed %s\n", cmdbuf);
@@ -331,28 +339,55 @@ int main(void) {
     static pthread_t router_handle;
     pthread_create(&router_handle, NULL, &router_task, NULL);
 
-    _can_addr = param_get_uint16(&can_addr);
-    _can_netmask = param_get_uint16(&can_netmask);
-    if (_can_addr == 0) {
-        _can_addr = CAN_ADDR_DEFAULT;
-        param_set_uint16(&can_addr, _can_addr);
+    _interface_addr = param_get_uint16(&interface_addr);
+    _interface_netmask = param_get_uint16(&interface_netmask);
+    if (_interface_addr == 0) {
+        _interface_addr = INT_ADDR_DEFAULT;
+        param_set_uint16(&interface_addr, _interface_addr);
     }
-    if (_can_netmask == 0) {
-        _can_netmask = CAN_NETMASK_DEFAULT;
-        param_set_uint16(&can_netmask, _can_netmask);
-    }
-
-    csp_iface_t* can_iface;
-    int error = csp_can_socketcan_open_and_add_interface("can0", "CAN", _can_addr, 1000000, 0, &can_iface);
-    if (error != 0) {
-        csp_print("Failed to open CAN interface\n");
-        return error;
+    if (_interface_netmask == 0) {
+        _interface_netmask = INT_NETMASK_DEFAULT;
+        param_set_uint16(&interface_netmask, _interface_netmask);
     }
 
-    can_iface->is_default = true;
-    can_iface->addr = _can_addr;
-    can_iface->netmask = _can_netmask;
-    can_iface->name = "CAN";
+    interface_type = param_get_uint8(&interface_type); // read chosen interface
+    int error = 0;
+
+    if (interface_type == 0) {
+        // CAN interface
+        error = csp_can_socketcan_open_and_add_interface("can0", "CAN", _interface_addr, 1000000, 0, &phy_iface);
+        if (error != 0) {
+            csp_print("Failed to open CAN interface\n");
+            return error;
+        }
+        phy_iface->name = "CAN";
+    } else if (interface_type == 1) {
+        // KISS interface
+        csp_usart_conf_t conf = (
+            "/dev/ttyKISS0", // device
+            115200, // baudrate
+            8, // databits
+            1, // stopbits
+            0, // partysetting
+            0 // checkparty
+        );
+
+        error = csp_usart_open_and_add_kiss_interface(&conf, "KISS", _interface_addr, &phy_iface);
+        if (error != 0) {
+            csp_print("Failed to open KISS interface\n");
+            return error;
+        }
+        phy_iface->name = "KISS";
+    } else {
+        if (error != 0) {
+            csp_print("Failed to run the command - interface type is not recognized (should be 0 for CAN or 1 for KISS\n");
+            return;
+        }
+    }
+
+    phy_iface->is_default = true;
+    phy_iface->addr = _interface_addr;
+    phy_iface->netmask = _interface_netmask;
 
     if (suspend_on_boot_read() >= 1) {
         suspend_a53_callback();
