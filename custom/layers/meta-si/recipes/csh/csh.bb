@@ -8,9 +8,9 @@ LIC_FILES_CHKSUM = "file://README.md;md5=fcfc09a5e736efc9442a7529f3aacbcc"
 SRC_URI = "git://github.com/discosat/csh.git;protocol=https;branch=master;rev=cb7a17837ea941081d12f3de6196ac3a311923f2"
 
 SRC_URI += " \
-    git://github.com/spaceinventor/libcsp.git;protocol=https;destsuffix=git/lib/csp;name=libcsp;rev=7ba36fb06ec21a5ade61672c2a55e3917619f58f \
-    git://github.com/spaceinventor/libparam.git;protocol=https;destsuffix=git/lib/param;name=libparam;branch=master;rev=fdf62e155a965df99a1012174677c6f2958a7e4f \
-    git://github.com/spaceinventor/slash.git;protocol=https;destsuffix=git/lib/slash;name=slash;branch=master;rev=6084abc9a64edd72e2f4ad50914bcacb2194c4a5 \
+    git://github.com/spaceinventor/libcsp.git;protocol=https;destsuffix=git/lib/csp;name=libcsp;rev=6d0c670ac1c31b43083ab157cd2ed66a2ae8df35 \
+    git://github.com/discosat/libparam.git;protocol=https;destsuffix=git/lib/param;name=libparam;branch=master;rev=768970c6320a455250ddd88903bbd9f58db81216 \
+    git://github.com/spaceinventor/slash.git;protocol=https;destsuffix=git/lib/slash;name=slash;branch=master;rev=05c2b9efde0ac6181608f0232ece13a0e1c14f81 \
     git://github.com/yaml/libyaml.git;protocol=https;destsuffix=git/lib/yaml;name=yaml;branch=master;rev=f8f760f7387d2cc56a2fc7b1be313a3bf3f7f58c \
 "
 

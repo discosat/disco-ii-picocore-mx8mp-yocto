@@ -4,7 +4,7 @@ LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=2915dc85ab8fd26629e560d023ef175c"
 
 SRC_URI = "git://github.com/spaceinventor/libcsp.git;protocol=https;branch=master"
-SRCREV = "f0835bff94d44a70adb0e0dcd003c16870ba104e"
+SRCREV = "6d0c670ac1c31b43083ab157cd2ed66a2ae8df35"
 
 S = "${WORKDIR}/git"
 B = "${S}/builddir"

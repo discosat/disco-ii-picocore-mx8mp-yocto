@@ -3,7 +3,7 @@ SECTION = "pipeline"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-SRC_URI = "git://github.com/discosat/DIPP.git;protocol=https;branch=main;rev=d8c01f4ae6811f75edf5ac422437383e797f3053"
+SRC_URI = "git://github.com/discosat/DIPP.git;protocol=https;branch=main;rev=8f2990ca83d325976a51c3dae75d16727a2547f4"
 
 SRC_URI += " \
     git://github.com/discosat/libcsp.git;protocol=https;destsuffix=git/lib/csp;name=libcsp;branch=master;rev=6d0c670ac1c31b43083ab157cd2ed66a2ae8df35 \
@@ -51,8 +51,7 @@ do_configure() {
 do_install() {
     ninja -C ${B} install
     install -d ${D}/usr/share/pipeline
-    install -m 0644 ${WORKDIR}/git/external_modules/demosaic.so ${D}/usr/share/pipeline
-    install -m 0644 ${WORKDIR}/git/external_modules/encoder.so ${D}/usr/share/pipeline  
+    install -m 0644 ${WORKDIR}/git/external_modules/libdemosaic-err.so ${D}/usr/share/pipeline  
 }
 
 FILES:${PN} += "${libdir}/*"

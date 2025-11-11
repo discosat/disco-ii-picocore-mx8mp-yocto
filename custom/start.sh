@@ -31,6 +31,7 @@ source sources/base/setup-environment build-fsimx8mp-fus-imx-wayland
 ##### Build the image #####
 
 bitbake disco-fus-image
+bitbake disco-fus-image -c populate_sdk
 
 ##### Prepare deploy volume #####
 
