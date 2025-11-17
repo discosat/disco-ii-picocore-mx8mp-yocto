@@ -33,6 +33,7 @@
 
 #include <csp/csp.h>
 #include <csp/interfaces/csp_if_can.h>
+#include <csp/drivers/usart.h>
 
 #include <param/param.h>
 #include <param/param_server.h>
@@ -378,7 +379,7 @@ int main(int argc, char *argv[]) {
     } else if (default_interface_type == 1) {
         // KISS interface
         csp_usart_conf_t conf = {
-            "/dev/ttyKISS0", // device
+            "/dev/ttymxc3", // device
             115200, // baudrate
             8, // databits
             1, // stopbits
@@ -386,13 +387,13 @@ int main(int argc, char *argv[]) {
             0 // checkparty
         };
 
-        error = csp_usart_open_and_add_kiss_interface(&conf, "KISS", _interface_addr, &phy_iface);
+        int error = csp_usart_open_and_add_kiss_interface(&conf, "KISS", &can_iface);
         if (error != 0) {
             csp_print("Failed to open KISS interface\n");
             return error;
         }
 
-        phy_iface->name = "KISS";
+        can_iface->name = "KISS";
     } else {
         csp_print("Invalid interface type: %u\n", default_interface_type);
         return -1;
