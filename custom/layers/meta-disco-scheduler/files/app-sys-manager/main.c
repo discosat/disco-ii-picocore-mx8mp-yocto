@@ -307,6 +307,7 @@ int main(int argc, char *argv[]) {
     // Default values for CAN address and netmask
     uint16_t default_can_addr = 5421;
     uint16_t default_can_netmask = 8;
+    uint16_t default_interface_type = 0;
 
     // Print command-line arguments
     printf("argc: %u\n", argc);
@@ -320,6 +321,9 @@ int main(int argc, char *argv[]) {
     }
     if (argc >= 3) {
         default_can_netmask = (uint16_t)atoi(argv[2]);
+    }
+    if (argc >= 4) {
+        default_interface_type = (uint16_t)atoi(argv[3]);
     }
 
     printf("Using CAN address: %u, netmask: %u\n", default_can_addr, default_can_netmask);
@@ -362,16 +366,41 @@ int main(int argc, char *argv[]) {
     }
 
     csp_iface_t* can_iface;
-    int error = csp_can_socketcan_open_and_add_interface("can0", "CAN", _can_addr, 1000000, 0, &can_iface);
-    if (error != 0) {
-        csp_print("Failed to open CAN interface\n");
-        return error;
+
+    if (default_interface_type == 0) 
+    {
+        int error = csp_can_socketcan_open_and_add_interface("can0", "CAN", _can_addr, 1000000, 0, &can_iface);
+        if (error != 0) {
+            csp_print("Failed to open CAN interface\n");
+            return error;
+        }
+        can_iface->name = "CAN";
+    } else if (default_interface_type == 1) {
+        // KISS interface
+        csp_usart_conf_t conf = {
+            "/dev/ttyKISS0", // device
+            115200, // baudrate
+            8, // databits
+            1, // stopbits
+            0, // partysetting
+            0 // checkparty
+        };
+
+        error = csp_usart_open_and_add_kiss_interface(&conf, "KISS", _interface_addr, &phy_iface);
+        if (error != 0) {
+            csp_print("Failed to open KISS interface\n");
+            return error;
+        }
+
+        phy_iface->name = "KISS";
+    } else {
+        csp_print("Invalid interface type: %u\n", default_interface_type);
+        return -1;
     }
 
     can_iface->is_default = true;
     can_iface->addr = _can_addr;
     can_iface->netmask = _can_netmask;
-    can_iface->name = "CAN";
 
     if (suspend_on_boot_read() >= 1) {
         suspend_a53_callback();
