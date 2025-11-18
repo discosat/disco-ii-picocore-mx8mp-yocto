@@ -27,12 +27,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
-#include <stdint.h> 
+#include <stdint.h>
 #include <stdarg.h>
+#include <string.h>
 #include <sys/select.h>
 
 #include <csp/csp.h>
 #include <csp/interfaces/csp_if_can.h>
+#include <csp/drivers/usart.h>
 
 #include <param/param.h>
 #include <param/param_server.h>
@@ -70,16 +72,28 @@ uint8_t _vimba_install;
 uint16_t _mng_camera_control;
 uint16_t _mng_dipp;
 uint8_t _switch_m7_bin;
+uint8_t _mng_dipp_interface;
+char _mng_dipp_vmem_path[128];
+uint8_t _mng_camera_interface;
+char _mng_camera_vmem_path[128];
 #define PARAMID_SUSPEND_A53 31
 #define PARAMID_VIMBA_INSTALL 32
 #define PARAMID_MNG_CAMERA_CONTROL 33
 #define PARAMID_MNG_DIPP 34
 #define PARAMID_SWITCH_M7_BIN 35
+#define PARAMID_MNG_DIPP_INTERFACE 36
+#define PARAMID_MNG_DIPP_VMEM_PATH 37
+#define PARAMID_MNG_CAMERA_INTERFACE 38
+#define PARAMID_MNG_CAMERA_VMEM_PATH 39
 PARAM_DEFINE_STATIC_RAM(PARAMID_SUSPEND_A53, suspend_a53, PARAM_TYPE_UINT8, -1, 0, PM_CONF, suspend_a53_callback, "", &_suspend_a53, "STOP A53 cores (suspend linux)");
 PARAM_DEFINE_STATIC_RAM(PARAMID_VIMBA_INSTALL, vimba_install, PARAM_TYPE_UINT8, -1, 0, PM_CONF, vimba_install_callback, "", &_vimba_install, "Install Vimba drivers");
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_CAMERA_CONTROL, mng_camera_control, PARAM_TYPE_UINT16, -1, 0, PM_CONF, mng_camera_control_callback, "", &_mng_camera_control, "Start camera control as this node number (0 kills it)");
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_DIPP, mng_dipp, PARAM_TYPE_UINT16, -1, 0, PM_CONF, mng_dipp_callback, "", &_mng_dipp, "Start DIPP as this node number (0 kills it)");
 PARAM_DEFINE_STATIC_RAM(PARAMID_SWITCH_M7_BIN, switch_m7_bin, PARAM_TYPE_UINT8, -1, 0, PM_READONLY, NULL, "", &_switch_m7_bin, "Switch Cortex-M7 binaries"); // Disabled for now
+PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_DIPP_INTERFACE, mng_dipp_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_dipp_interface, "DIPP interface type (0=CAN, 1=KISS)");
+PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_DIPP_VMEM_PATH, mng_dipp_vmem_path, PARAM_TYPE_STRING, 128, 1, PM_CONF, NULL, "", &_mng_dipp_vmem_path, "DIPP vmem directory path");
+PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_CAMERA_INTERFACE, mng_camera_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_camera_interface, "Camera interface type (0=CAN, 1=KISS)");
+PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_CAMERA_VMEM_PATH, mng_camera_vmem_path, PARAM_TYPE_STRING, 128, 1, PM_CONF, NULL, "", &_mng_camera_vmem_path, "Camera vmem directory path");
 
 // Circular buffer for standard output
 #define STDBUF_SIZE 110
@@ -179,8 +193,22 @@ void mng_camera_control_callback() {
             }
             break;
         default:  // Start camera control as node number `mng_camera_control`
-            char cmdbuf[128];
-            sprintf(cmdbuf, "/usr/bin/Disco2CameraControl -i can -d can0 -n %u 2>&1", param_val);
+            char cmdbuf[256];
+            uint8_t interface_type = param_get_uint8(&mng_camera_interface);
+            char vmem_path[128];
+            param_get_string(&mng_camera_vmem_path, vmem_path, sizeof(vmem_path));
+
+            const char* interface_str = (interface_type == 1) ? "kiss" : "can";
+            const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
+
+            if (strlen(vmem_path) > 0) {
+                sprintf(cmdbuf, "/usr/bin/Disco2CameraControl -i %s -d %s -n %u -v %s 2>&1",
+                        interface_str, device_str, param_val, vmem_path);
+            } else {
+                sprintf(cmdbuf, "/usr/bin/Disco2CameraControl -i %s -d %s -n %u 2>&1",
+                        interface_str, device_str, param_val);
+            }
+
             fp = popen(cmdbuf, "r");
             if (fp == NULL) {
                 csp_print("Failed %s\n", cmdbuf);
@@ -207,8 +235,22 @@ void mng_dipp_callback() {
             }
             break;
         default:  // Start dipp as node number `mng_dipp`
-            char cmdbuf[128];
-            sprintf(cmdbuf, "/usr/bin/dipp -i CAN -p can0 -a %u 2>&1", param_val);
+            char cmdbuf[256];
+            uint8_t interface_type = param_get_uint8(&mng_dipp_interface);
+            char vmem_path[128];
+            param_get_string(&mng_dipp_vmem_path, vmem_path, sizeof(vmem_path));
+
+            const char* interface_str = (interface_type == 1) ? "KISS" : "CAN";
+            const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
+
+            if (strlen(vmem_path) > 0) {
+                sprintf(cmdbuf, "/usr/bin/dipp -i %s -p %s -a %u -v %s 2>&1",
+                        interface_str, device_str, param_val, vmem_path);
+            } else {
+                sprintf(cmdbuf, "/usr/bin/dipp -i %s -p %s -a %u 2>&1",
+                        interface_str, device_str, param_val);
+            }
+
             fp = popen(cmdbuf, "r");
             if (fp == NULL) {
                 csp_print("Failed %s\n", cmdbuf);
@@ -307,6 +349,9 @@ int main(int argc, char *argv[]) {
     // Default values for CAN address and netmask
     uint16_t default_can_addr = 5421;
     uint16_t default_can_netmask = 8;
+    uint16_t default_interface_type = 0;
+    char* vmem_dir = NULL;
+    char vmem_full_path[512];
 
     // Print command-line arguments
     printf("argc: %u\n", argc);
@@ -315,11 +360,33 @@ int main(int argc, char *argv[]) {
     }
 
     // Parse command-line arguments
-    if (argc >= 2) {
-        default_can_addr = (uint16_t)atoi(argv[1]);
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--vmem-path") == 0) {
+            if (i + 1 < argc) {
+                vmem_dir = argv[i + 1];
+                i++; // Skip next argument
+            } else {
+                fprintf(stderr, "Error: %s requires a directory path argument\n", argv[i]);
+                return 1;
+            }
+        } else if (i == 1 && argv[i][0] != '-') {
+            // Legacy positional argument 1: CAN address
+            default_can_addr = (uint16_t)atoi(argv[i]);
+        } else if (i == 2 && argv[i][0] != '-') {
+            // Legacy positional argument 2: netmask
+            default_can_netmask = (uint16_t)atoi(argv[i]);
+        } else if (i == 3 && argv[i][0] != '-') {
+            // Legacy positional argument 3: interface type
+            default_interface_type = (uint16_t)atoi(argv[i]);
+        }
     }
-    if (argc >= 3) {
-        default_can_netmask = (uint16_t)atoi(argv[2]);
+
+    // Set vmem directory path if provided
+    if (vmem_dir != NULL) {
+        snprintf(vmem_full_path, sizeof(vmem_full_path), "%s/sys-man-config.vmem", vmem_dir);
+        ((vmem_file_driver_t *)vmem_config.driver)->filename = vmem_full_path;
+        printf("Using vmem directory: %s\n", vmem_dir);
+        printf("Config vmem file: %s\n", vmem_full_path);
     }
 
     printf("Using CAN address: %u, netmask: %u\n", default_can_addr, default_can_netmask);
@@ -362,16 +429,41 @@ int main(int argc, char *argv[]) {
     }
 
     csp_iface_t* can_iface;
-    int error = csp_can_socketcan_open_and_add_interface("can0", "CAN", _can_addr, 1000000, 0, &can_iface);
-    if (error != 0) {
-        csp_print("Failed to open CAN interface\n");
-        return error;
+
+    if (default_interface_type == 0)
+    {
+        int error = csp_can_socketcan_open_and_add_interface("can0", "CAN", _can_addr, 1000000, 0, &can_iface);
+        if (error != 0) {
+            csp_print("Failed to open CAN interface\n");
+            return error;
+        }
+        can_iface->name = "CAN";
+    } else if (default_interface_type == 1) {
+        // KISS interface
+        csp_usart_conf_t conf = {
+            "/dev/ttymxc3", // device
+            115200, // baudrate
+            8, // databits
+            1, // stopbits
+            0, // partysetting
+            0 // checkparty
+        };
+
+        int error = csp_usart_open_and_add_kiss_interface(&conf, "KISS", &can_iface);
+        if (error != 0) {
+            csp_print("Failed to open KISS interface\n");
+            return error;
+        }
+
+        can_iface->name = "KISS";
+    } else {
+        csp_print("Invalid interface type: %u\n", default_interface_type);
+        return -1;
     }
 
     can_iface->is_default = true;
     can_iface->addr = _can_addr;
     can_iface->netmask = _can_netmask;
-    can_iface->name = "CAN";
 
     if (suspend_on_boot_read() >= 1) {
         suspend_a53_callback();
