@@ -54,10 +54,10 @@ PARAM_DEFINE_STATIC_VMEM(PARAMID_SUSPEND_ON_BOOT, suspend_on_boot, PARAM_TYPE_UI
 
 // Uploader Configuration (Stored in VMEM for persistence)
 // Index 0: Client Address, Index 1: Server Address
-uint16_t _uploader_cfg[2] = {5424, 4100}; // Default values if VMEM is empty
-param_t uploader_cfg;
-#define PARAMID_UPLOADER_CFG 42
-PARAM_DEFINE_STATIC_VMEM(PARAMID_UPLOADER_CFG, uploader_cfg, PARAM_TYPE_UINT16, 2, sizeof(_uploader_cfg), PM_CONF, NULL, "", config, 0x102, "Uploader Config [Client, Server]");
+uint16_t _util[2] = {5424, 4100}; // Default values if VMEM is empty
+param_t util;
+#define PARAMID_UTIL 42
+PARAM_DEFINE_STATIC_VMEM(PARAMID_UTIL, util, PARAM_TYPE_UINT16, 2, sizeof(_util), PM_CONF, NULL, "", config, 0x102, "Uploader Config [Client, Server]");
 
 // --- RAM PARAMETERS ---
 
@@ -66,7 +66,7 @@ void vimba_install_callback();
 void mng_camera_control_callback();
 void mng_dipp_callback();
 void switch_m7_bin_callback();
-void mng_uploader_callback();
+void mng_util_callback();
 
 uint8_t _suspend_a53;
 uint8_t _vimba_install;
@@ -77,8 +77,8 @@ uint8_t _mng_dipp_interface;
 char _mng_dipp_vmem_path[128];
 uint8_t _mng_camera_interface;
 char _mng_camera_vmem_path[128];
-uint8_t _mng_uploader; // Switch to start/stop uploader
-uint8_t _mng_uploader_interface; // 0=CAN, 1=KISS
+uint8_t _mng_util; // Switch to start/stop uploader
+uint8_t _mng_util_interface; // 0=CAN, 1=KISS
 
 #define PARAMID_SUSPEND_A53 31
 #define PARAMID_VIMBA_INSTALL 32
@@ -89,8 +89,8 @@ uint8_t _mng_uploader_interface; // 0=CAN, 1=KISS
 #define PARAMID_MNG_DIPP_VMEM_PATH 37
 #define PARAMID_MNG_CAMERA_INTERFACE 38
 #define PARAMID_MNG_CAMERA_VMEM_PATH 39
-#define PARAMID_MNG_UPLOADER 43
-#define PARAMID_MNG_UPLOADER_INTERFACE 44
+#define PARAMID_MNG_UTIL 43
+#define PARAMID_MNG_UTIL_INTERFACE 44
 
 PARAM_DEFINE_STATIC_RAM(PARAMID_SUSPEND_A53, suspend_a53, PARAM_TYPE_UINT8, -1, 0, PM_CONF, suspend_a53_callback, "", &_suspend_a53, "STOP A53 cores (suspend linux)");
 PARAM_DEFINE_STATIC_RAM(PARAMID_VIMBA_INSTALL, vimba_install, PARAM_TYPE_UINT8, -1, 0, PM_CONF, vimba_install_callback, "", &_vimba_install, "Install Vimba drivers");
@@ -101,8 +101,8 @@ PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_DIPP_INTERFACE, mng_dipp_interface, PARAM_TY
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_DIPP_VMEM_PATH, mng_dipp_vmem_path, PARAM_TYPE_STRING, 128, 1, PM_CONF, NULL, "", &_mng_dipp_vmem_path, "DIPP vmem directory path");
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_CAMERA_INTERFACE, mng_camera_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_camera_interface, "Camera interface type (0=CAN, 1=KISS)");
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_CAMERA_VMEM_PATH, mng_camera_vmem_path, PARAM_TYPE_STRING, 128, 1, PM_CONF, NULL, "", &_mng_camera_vmem_path, "Camera vmem directory path");
-PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_UPLOADER, mng_uploader, PARAM_TYPE_UINT8, -1, 0, PM_CONF, mng_uploader_callback, "", &_mng_uploader, "Start Uploader (1=Start, 0=Stop)");
-PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_UPLOADER_INTERFACE, mng_uploader_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_uploader_interface, "Uploader interface (0=CAN, 1=KISS)");
+PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_UTIL, mng_util, PARAM_TYPE_UINT8, -1, 0, PM_CONF, mng_util_callback, "", &_mng_util, "Start Uploader (1=Start, 0=Stop)");
+PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_UTIL_INTERFACE, mng_util_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_util_interface, "Uploader interface (0=CAN, 1=KISS)");
 
 
 // Circular buffer for standard output
@@ -266,10 +266,10 @@ void mng_dipp_callback() {
     }
 }
 
-void mng_uploader_callback() {
+void mng_util_callback() {
     char buffer[128];
     FILE *fp;
-    uint8_t start = param_get_uint8(&mng_uploader);
+    uint8_t start = param_get_uint8(&mng_util);
 
     if (start == 0) {
         // Kill uploader
@@ -284,8 +284,8 @@ void mng_uploader_callback() {
     } else {
         // Start uploader
         uint16_t cfg[2];
-        param_get_data(&uploader_cfg, cfg, sizeof(cfg));
-        uint8_t interface_type = param_get_uint8(&mng_uploader_interface);
+        param_get_data(&util, cfg, sizeof(cfg));
+        uint8_t interface_type = param_get_uint8(&mng_util_interface);
         
         uint16_t client_addr = cfg[0];
         uint16_t server_addr = cfg[1];
@@ -410,11 +410,11 @@ int main(int argc, char *argv[]) {
 
     // Check uploader config defaults if VMEM is fresh
     uint16_t current_cfg[2];
-    param_get_data(&uploader_cfg, current_cfg, sizeof(current_cfg));
+    param_get_data(&util, current_cfg, sizeof(current_cfg));
     if (current_cfg[0] == 0) {
         // Set defaults [5424, 4100] to VMEM if empty
         uint16_t defaults[2] = {5424, 4100};
-        param_set_data(&uploader_cfg, defaults, sizeof(defaults));
+        param_set_data(&util, defaults, sizeof(defaults));
     }
 
     csp_iface_t* can_iface;
