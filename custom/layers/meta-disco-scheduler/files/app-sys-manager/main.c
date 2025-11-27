@@ -185,7 +185,7 @@ int do_time_sync(uint8_t node) {
     ts.tv_nsec = time.tv_nsec;
     
     if (clock_settime(CLOCK_REALTIME, &ts) != 0) {
-        csp_print("Failed to set system time: %s\n", strerror(errno));
+        csp_print("Failed to set system time:\n");
         _time_sync_last_error = 255;
         return -1;
     }
