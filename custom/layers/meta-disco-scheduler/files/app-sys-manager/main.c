@@ -380,16 +380,6 @@ int main(int argc, char *argv[]) {
         param_set_uint16(&can_netmask, _can_netmask);
     }
 
-    // Check uploader config defaults if VMEM is fresh
-    // Note: We use mng_util for the config array now
-    uint16_t current_cfg[2];
-    param_get_data(&mng_util, current_cfg, sizeof(current_cfg));
-    if (current_cfg[0] == 0) {
-        // Set defaults [5424, 4100] to VMEM if empty
-        uint16_t defaults[2] = {5424, 4100};
-        param_set_data(&mng_util, defaults, sizeof(defaults));
-    }
-
     csp_iface_t* can_iface;
 
     if (default_interface_type == 0) {
