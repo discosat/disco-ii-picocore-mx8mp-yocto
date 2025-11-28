@@ -37,27 +37,26 @@ VMEM_DEFINE_FILE(config, "config", "sys-man-config.vmem", 1000);
 
 void can_addr_callback();
 void can_netmask_callback();
+void mng_util_callback(); // Callback assigned to mng_util
+
 uint16_t _can_addr;
 uint16_t _can_netmask;
 param_t can_addr;
 param_t can_netmask;
 csp_iface_t* can_iface;
+
 #define PARAMID_CAN_ADDR 21
 #define PARAMID_CAN_NETMASK 22
 PARAM_DEFINE_STATIC_VMEM(PARAMID_CAN_ADDR, can_addr, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, can_addr_callback, "", config, 0x10, "CAN interface address");
 PARAM_DEFINE_STATIC_VMEM(PARAMID_CAN_NETMASK, can_netmask, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, can_netmask_callback, "", config, 0x12, "CAN interface netmask");
 
-void suspend_on_boot_callback();
-param_t suspend_on_boot;
-#define PARAMID_SUSPEND_ON_BOOT 23
-PARAM_DEFINE_STATIC_VMEM(PARAMID_SUSPEND_ON_BOOT, suspend_on_boot, PARAM_TYPE_UINT8, -1, 0, PM_SYSCONF, suspend_on_boot_callback, "", config, 0x100, "Whether to suspend A53 cores on boot");
-
 // Uploader Configuration (Stored in VMEM for persistence)
-// Index 0: Client Address, Index 1: Server Address
-uint16_t _util[2] = {5424, 4100}; // Default values if VMEM is empty
-param_t util;
-#define PARAMID_UTIL 42
-PARAM_DEFINE_STATIC_VMEM(PARAMID_UTIL, util, PARAM_TYPE_UINT16, 2, sizeof(_util), PM_CONF, NULL, "", config, 0x102, "Uploader Config [Client, Server]");
+// Index 0: Client Address (Set to 0 to Stop), Index 1: Server Address
+uint16_t _mng_util[2] = {5424, 4100}; // Default values
+param_t mng_util;
+#define PARAMID_MNG_UTIL 42
+// Updated: Renamed to mng_util
+PARAM_DEFINE_STATIC_VMEM(PARAMID_MNG_UTIL, mng_util, PARAM_TYPE_UINT16, 2, sizeof(_mng_util), PM_CONF, mng_util_callback, "", config, 0x102, "Uploader Config [Client, Server] (Set Client=0 to Kill)");
 
 // --- RAM PARAMETERS ---
 
@@ -66,7 +65,6 @@ void vimba_install_callback();
 void mng_camera_control_callback();
 void mng_dipp_callback();
 void switch_m7_bin_callback();
-void mng_util_callback();
 
 uint8_t _suspend_a53;
 uint8_t _vimba_install;
@@ -77,7 +75,7 @@ uint8_t _mng_dipp_interface;
 char _mng_dipp_vmem_path[128];
 uint8_t _mng_camera_interface;
 char _mng_camera_vmem_path[128];
-uint8_t _mng_util; // Switch to start/stop uploader
+// Removed separate start/stop switch, using mng_util[0] == 0 for that logic
 uint8_t _mng_util_interface; // 0=CAN, 1=KISS
 
 #define PARAMID_SUSPEND_A53 31
@@ -89,7 +87,6 @@ uint8_t _mng_util_interface; // 0=CAN, 1=KISS
 #define PARAMID_MNG_DIPP_VMEM_PATH 37
 #define PARAMID_MNG_CAMERA_INTERFACE 38
 #define PARAMID_MNG_CAMERA_VMEM_PATH 39
-#define PARAMID_MNG_UTIL 43
 #define PARAMID_MNG_UTIL_INTERFACE 44
 
 PARAM_DEFINE_STATIC_RAM(PARAMID_SUSPEND_A53, suspend_a53, PARAM_TYPE_UINT8, -1, 0, PM_CONF, suspend_a53_callback, "", &_suspend_a53, "STOP A53 cores (suspend linux)");
@@ -101,7 +98,6 @@ PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_DIPP_INTERFACE, mng_dipp_interface, PARAM_TY
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_DIPP_VMEM_PATH, mng_dipp_vmem_path, PARAM_TYPE_STRING, 128, 1, PM_CONF, NULL, "", &_mng_dipp_vmem_path, "DIPP vmem directory path");
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_CAMERA_INTERFACE, mng_camera_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_camera_interface, "Camera interface type (0=CAN, 1=KISS)");
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_CAMERA_VMEM_PATH, mng_camera_vmem_path, PARAM_TYPE_STRING, 128, 1, PM_CONF, NULL, "", &_mng_camera_vmem_path, "Camera vmem directory path");
-PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_UTIL, mng_util, PARAM_TYPE_UINT8, -1, 0, PM_CONF, mng_util_callback, "", &_mng_util, "Start Uploader (1=Start, 0=Stop)");
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_UTIL_INTERFACE, mng_util_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_util_interface, "Uploader interface (0=CAN, 1=KISS)");
 
 
@@ -135,8 +131,8 @@ void csp_print_func(const char * fmt, ...) {
 }
 
 void * vmem_server_task(void * param) {
-	vmem_server_loop(param);
-	return NULL;
+    vmem_server_loop(param);
+    return NULL;
 }
 
 void* router_task(void* param) {
@@ -269,37 +265,39 @@ void mng_dipp_callback() {
 void mng_util_callback() {
     char buffer[128];
     FILE *fp;
-    uint8_t start = param_get_uint8(&mng_util);
+    
+    // Read the array data from the VMEM parameter (mng_util)
+    uint16_t cfg[2];
+    param_get_data(&mng_util, cfg, sizeof(cfg));
 
-    if (start == 0) {
+    // Index 0 is Client Address. If 0, we treat it as "Kill/Stop".
+    if (cfg[0] == 0) {
         // Kill uploader
-        fp = popen("pkill -f /usr/bin/upload_sat-client 2>&1", "r");
+        fp = popen("pkill -f /usr/bin/upload_client 2>&1", "r");
         if (fp == NULL) {
             csp_print("Failed to run pkill command\n");
             return;
         }
+        csp_print("Stopping uploader...\n");
         while (fgets(buffer, sizeof(buffer)-1, fp) != NULL) {
             csp_print("%s", buffer);
         }
     } else {
         // Start uploader
-        uint16_t cfg[2];
-        param_get_data(&util, cfg, sizeof(cfg));
         uint8_t interface_type = param_get_uint8(&mng_util_interface);
         
         uint16_t client_addr = cfg[0];
         uint16_t server_addr = cfg[1];
 
-        // Sanity check defaults if VMEM was empty/zeroed
-        if (client_addr == 0) client_addr = 5424;
+        // Sanity check server address. If 0, default to 4100
         if (server_addr == 0) server_addr = 4100;
 
         // Determine device string (0 = CAN, 1 = KISS)
         const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
 
         char cmdbuf[256];
-        // ./usr/bin/upload_sat-client -c <DEVICE> -a <CLIENT_ADDRESS> -s <SERVER_ADDRESS>
-        sprintf(cmdbuf, "/usr/bin/upload_sat-client -c %s -a %u -s %u 2>&1", 
+        // ./usr/bin/upload_client -c <DEVICE> -a <CLIENT_ADDRESS> -s <SERVER_ADDRESS>
+        sprintf(cmdbuf, "/usr/bin/upload_client -c %s -a %u -s %u 2>&1", 
                 device_str, client_addr, server_addr);
         
         csp_print("Starting: %s\n", cmdbuf);
@@ -309,35 +307,9 @@ void mng_util_callback() {
             csp_print("Failed to start uploader\n");
             return;
         }
-        // Read immediate output if any (usually startup logs)
-        // Since the process likely runs in background or hangs, popen might not return EOF 
-        // immediately unless the program forks. If upload_sat-client blocks, this will block.
-        // Assuming upload_sat-client behaves like standard daemons or we rely on pkill to stop it.
+        // Read output if any
+        // Assuming upload_client behaves like standard daemons
     }
-}
-
-void suspend_on_boot_callback() {
-    uint8_t param_val = param_get_uint8(&suspend_on_boot);
-    FILE *file = fopen("/home/root/suspend_on_boot", "w");
-    if (file == NULL) {
-        perror("Failed to open file");
-        return;
-    }
-    fprintf(file, "%d", param_val);
-    fclose(file);
-}
-
-int suspend_on_boot_read() {
-    FILE *file = fopen("/home/root/suspend_on_boot", "r");
-    if (file == NULL) {
-        perror("Failed to open file");
-        return -1;
-    }
-    int param_val;
-    fscanf(file, "%d", &param_val);
-    fclose(file);
-    param_set_uint8(&suspend_on_boot, param_val);
-    return param_val;
 }
 
 int main(int argc, char *argv[]) {
@@ -377,8 +349,8 @@ int main(int argc, char *argv[]) {
     
     csp_conf.hostname = "app-sys-manager";
     csp_conf.model = "PicoCoreMX8MP-Cortex-A53";
-	csp_conf.version = 2;
-	csp_conf.dedup = CSP_DEDUP_OFF;
+    csp_conf.version = 2;
+    csp_conf.dedup = CSP_DEDUP_OFF;
     uint32_t serial = serial_get();
     char *serial_str = malloc(19 * sizeof(char));
     if (serial_str) {
@@ -392,7 +364,7 @@ int main(int argc, char *argv[]) {
     csp_bind_callback(param_serve, PARAM_PORT_SERVER);
 
     static pthread_t vmem_server_handle;
-	pthread_create(&vmem_server_handle, NULL, &vmem_server_task, NULL);
+    pthread_create(&vmem_server_handle, NULL, &vmem_server_task, NULL);
 
     static pthread_t router_handle;
     pthread_create(&router_handle, NULL, &router_task, NULL);
@@ -409,12 +381,13 @@ int main(int argc, char *argv[]) {
     }
 
     // Check uploader config defaults if VMEM is fresh
+    // Note: We use mng_util for the config array now
     uint16_t current_cfg[2];
-    param_get_data(&util, current_cfg, sizeof(current_cfg));
+    param_get_data(&mng_util, current_cfg, sizeof(current_cfg));
     if (current_cfg[0] == 0) {
         // Set defaults [5424, 4100] to VMEM if empty
         uint16_t defaults[2] = {5424, 4100};
-        param_set_data(&util, defaults, sizeof(defaults));
+        param_set_data(&mng_util, defaults, sizeof(defaults));
     }
 
     csp_iface_t* can_iface;
