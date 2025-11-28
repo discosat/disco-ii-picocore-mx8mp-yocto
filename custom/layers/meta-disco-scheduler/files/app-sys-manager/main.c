@@ -418,10 +418,6 @@ int main(int argc, char *argv[]) {
     can_iface->addr = _can_addr;
     can_iface->netmask = _can_netmask;
 
-    if (suspend_on_boot_read() >= 1) {
-        suspend_a53_callback();
-    }
-
     while (1) {
         sleep(1);
     }
