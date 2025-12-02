@@ -37,7 +37,7 @@ VMEM_DEFINE_FILE(config, "config", "sys-man-config.vmem", 1000);
 
 void can_addr_callback();
 void can_netmask_callback();
-void mng_util_callback(); // Callback assigned to mng_util
+void mng_util_callback(); 
 
 uint16_t _can_addr;
 uint16_t _can_netmask;
@@ -52,11 +52,10 @@ PARAM_DEFINE_STATIC_VMEM(PARAMID_CAN_NETMASK, can_netmask, PARAM_TYPE_UINT16, -1
 
 // Uploader Configuration (Stored in VMEM for persistence)
 // Index 0: Client Address (Set to 0 to Stop), Index 1: Server Address
-uint16_t _mng_util[2] = {5424, 4100}; // Default values
 param_t mng_util;
 #define PARAMID_MNG_UTIL 42
-// Updated: Renamed to mng_util
-PARAM_DEFINE_STATIC_VMEM(PARAMID_MNG_UTIL, mng_util, PARAM_TYPE_UINT16, 2, sizeof(_mng_util), PM_CONF, mng_util_callback, "", config, 0x102, "Uploader Config [Client, Server] (Set Client=0 to Kill)");
+// Note: Callback is triggered when the array is written. Logic inside filters for index 0 changes.
+PARAM_DEFINE_STATIC_VMEM(PARAMID_MNG_UTIL, mng_util, PARAM_TYPE_UINT16, 2, 4, PM_CONF, mng_util_callback, "", config, 0x102, "Uploader Config [Client, Server] (Set Client=0 to Kill)");
 
 // --- RAM PARAMETERS ---
 
@@ -75,7 +74,6 @@ uint8_t _mng_dipp_interface;
 char _mng_dipp_vmem_path[128];
 uint8_t _mng_camera_interface;
 char _mng_camera_vmem_path[128];
-// Removed separate start/stop switch, using mng_util[0] == 0 for that logic
 uint8_t _mng_util_interface; // 0=CAN, 1=KISS
 
 #define PARAMID_SUSPEND_A53 31
@@ -179,22 +177,17 @@ void vimba_install_callback() {
 }
 
 void mng_camera_control_callback() {
-    char buffer[128];
-    FILE *fp;
+    static uint16_t prev_val = 0;
     uint16_t param_val = param_get_uint16(&mng_camera_control);
 
-    switch (param_val) {
-        case 0:  // Kill camera control
-            fp = popen("pkill -f /usr/bin/Disco2CameraControl 2>&1", "r");
-            if (fp == NULL) {
-                csp_print("Failed to run command\n");
-                return;
-            }
-            while (fgets(buffer, sizeof(buffer)-1, fp) != NULL) {
-                csp_print("%s", buffer);
-            }
-            break;
-        default:  // Start camera control
+    if (param_val != prev_val) {
+        // 1. Kill any existing instance to avoid duplicates
+        system("pkill -f /usr/bin/Disco2CameraControl > /dev/null 2>&1");
+
+        // 2. Check value
+        if (param_val == 0) {
+            csp_print("Stopping Camera Control...\n");
+        } else {
             char cmdbuf[256];
             uint8_t interface_type = param_get_uint8(&mng_camera_interface);
             char vmem_path[128];
@@ -211,32 +204,28 @@ void mng_camera_control_callback() {
                         interface_str, device_str, param_val);
             }
 
-            fp = popen(cmdbuf, "r");
+            csp_print("Starting: %s\n", cmdbuf);
+            FILE *fp = popen(cmdbuf, "r");
             if (fp == NULL) {
-                csp_print("Failed %s\n", cmdbuf);
-                return;
+                csp_print("Failed to start Camera Control\n");
             }
-            break;
+        }
+        prev_val = param_val;
     }
 }
 
 void mng_dipp_callback() {
-    char buffer[128];
-    FILE *fp;
-
+    static uint16_t prev_val = 0;
     uint16_t param_val = param_get_uint16(&mng_dipp);
-    switch (param_val) {
-        case 0:  // Kill dipp
-            fp = popen("pkill -f /usr/bin/dipp 2>&1", "r");
-            if (fp == NULL) {
-                csp_print("Failed to run command\n");
-                return;
-            }
-            while (fgets(buffer, sizeof(buffer)-1, fp) != NULL) {
-                csp_print("%s", buffer);
-            }
-            break;
-        default:  // Start dipp
+
+    if (param_val != prev_val) {
+        // 1. Kill any existing instance
+        system("pkill -f /usr/bin/dipp > /dev/null 2>&1");
+
+        // 2. Check value
+        if (param_val == 0) {
+            csp_print("Stopping DIPP...\n");
+        } else {
             char cmdbuf[256];
             uint8_t interface_type = param_get_uint8(&mng_dipp_interface);
             char vmem_path[128];
@@ -253,62 +242,65 @@ void mng_dipp_callback() {
                         interface_str, device_str, param_val);
             }
 
-            fp = popen(cmdbuf, "r");
+            csp_print("Starting: %s\n", cmdbuf);
+            FILE *fp = popen(cmdbuf, "r");
             if (fp == NULL) {
-                csp_print("Failed %s\n", cmdbuf);
-                return;
+                csp_print("Failed to start DIPP\n");
             }
-            break;
+        }
+        prev_val = param_val;
     }
 }
 
 void mng_util_callback() {
-    char buffer[128];
-    FILE *fp;
-    
-    // Read the array data from the VMEM parameter (mng_util)
+    // Static variable to track the previous Client Address.
+    // Initialized to 0. Since we removed boot logic, this ensures
+    // the first valid command (non-zero) will trigger the start.
+    static uint16_t prev_client_addr = 0;
+
+    // Read the array data from the VMEM parameter
     uint16_t cfg[2];
     param_get_data(&mng_util, cfg, sizeof(cfg));
 
-    // Index 0 is Client Address. If 0, we treat it as "Kill/Stop".
-    if (cfg[0] == 0) {
-        // Kill uploader
-        fp = popen("pkill -f /usr/bin/upload_client 2>&1", "r");
-        if (fp == NULL) {
-            csp_print("Failed to run pkill command\n");
-            return;
-        }
-        csp_print("Stopping uploader...\n");
-        while (fgets(buffer, sizeof(buffer)-1, fp) != NULL) {
-            csp_print("%s", buffer);
-        }
-    } else {
-        // Start uploader
-        uint8_t interface_type = param_get_uint8(&mng_util_interface);
+    uint16_t new_client_addr = cfg[0];
+    uint16_t server_addr = cfg[1];
+
+    // LOGIC: Only execute changes if the Client Address (the "switch") changes.
+    // This allows updating the server address (index 1) without killing the process,
+    // as long as index 0 remains the same.
+    if (new_client_addr != prev_client_addr) {
         
-        uint16_t client_addr = cfg[0];
-        uint16_t server_addr = cfg[1];
-
-        // Sanity check server address. If 0, default to 4100
-        if (server_addr == 0) server_addr = 4100;
-
-        // Determine device string (0 = CAN, 1 = KISS)
-        const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
-
-        char cmdbuf[256];
-        // ./usr/bin/upload_client -c <DEVICE> -a <CLIENT_ADDRESS> -s <SERVER_ADDRESS>
-        sprintf(cmdbuf, "/usr/bin/upload_client -c %s -a %u -s %u 2>&1", 
-                device_str, client_addr, server_addr);
+        // 1. ALWAYS kill any existing process first to prevent duplicates
+        // redirecting stderr to null to avoid noise if process isn't running
+        system("pkill -f /usr/bin/upload_client > /dev/null 2>&1");
         
-        csp_print("Starting: %s\n", cmdbuf);
+        // 2. If the new client address is 0, we stop here.
+        if (new_client_addr == 0) {
+            csp_print("Stopping uploader (Client Address set to 0)...\n");
+        } 
+        // 3. If new client address is valid, Start the process
+        else {
+            uint8_t interface_type = param_get_uint8(&mng_util_interface);
+            
+            // Sanity check server address. If 0, default to 4100
+            if (server_addr == 0) server_addr = 4100;
 
-        fp = popen(cmdbuf, "r");
-        if (fp == NULL) {
-            csp_print("Failed to start uploader\n");
-            return;
+            const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
+
+            char cmdbuf[256];
+            sprintf(cmdbuf, "/usr/bin/upload_client -c %s -a %u -s %u 2>&1", 
+                    device_str, new_client_addr, server_addr);
+            
+            csp_print("Starting: %s\n", cmdbuf);
+
+            FILE *fp = popen(cmdbuf, "r");
+            if (fp == NULL) {
+                csp_print("Failed to start uploader\n");
+            }
         }
-        // Read output if any
-        // Assuming upload_client behaves like standard daemons
+
+        // 4. Update the tracker
+        prev_client_addr = new_client_addr;
     }
 }
 
