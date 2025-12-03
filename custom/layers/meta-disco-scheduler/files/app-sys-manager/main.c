@@ -55,11 +55,6 @@ PARAM_DEFINE_STATIC_VMEM(PARAMID_CAN_ADDR, can_addr, PARAM_TYPE_UINT16, -1, 0, P
 PARAM_DEFINE_STATIC_VMEM(PARAMID_CAN_NETMASK, can_netmask, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, can_netmask_callback, "", config, 0x12, "CAN interface netmask");
 PARAM_DEFINE_STATIC_VMEM(PARAMID_DIPP_KISS_BAUDRATE, dipp_kiss_baudrate, PARAM_TYPE_UINT32, -1, 0, PM_SYSCONF, dipp_kiss_baudrate_callback, "", config, 0x14, "DIPP KISS interface baudrate");
 
-void suspend_on_boot_callback();
-param_t suspend_on_boot;
-#define PARAMID_SUSPEND_ON_BOOT 23
-PARAM_DEFINE_STATIC_VMEM(PARAMID_SUSPEND_ON_BOOT, suspend_on_boot, PARAM_TYPE_UINT8, -1, 0, PM_SYSCONF, suspend_on_boot_callback, "", config, 0x100, "Whether to suspend A53 cores on boot");
-
 // Uploader Configuration (Stored in VMEM for persistence)
 // Index 0: Client Address (Set to 0 to Stop), Index 1: Server Address
 uint16_t _mng_util[2];
