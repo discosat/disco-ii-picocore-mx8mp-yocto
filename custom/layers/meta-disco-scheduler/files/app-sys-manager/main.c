@@ -37,25 +37,35 @@ VMEM_DEFINE_FILE(config, "config", "sys-man-config.vmem", 1000);
 
 void can_addr_callback();
 void can_netmask_callback();
+void dipp_kiss_baudrate_callback();
 void mng_util_callback(); 
 
 uint16_t _can_addr;
 uint16_t _can_netmask;
+uint32_t _dipp_kiss_baudrate;
 param_t can_addr;
 param_t can_netmask;
+param_t dipp_kiss_baudrate;
 csp_iface_t* can_iface;
 
 #define PARAMID_CAN_ADDR 21
 #define PARAMID_CAN_NETMASK 22
+#define PARAMID_DIPP_KISS_BAUDRATE 24
 PARAM_DEFINE_STATIC_VMEM(PARAMID_CAN_ADDR, can_addr, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, can_addr_callback, "", config, 0x10, "CAN interface address");
 PARAM_DEFINE_STATIC_VMEM(PARAMID_CAN_NETMASK, can_netmask, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, can_netmask_callback, "", config, 0x12, "CAN interface netmask");
+PARAM_DEFINE_STATIC_VMEM(PARAMID_DIPP_KISS_BAUDRATE, dipp_kiss_baudrate, PARAM_TYPE_UINT32, -1, 0, PM_SYSCONF, dipp_kiss_baudrate_callback, "", config, 0x14, "DIPP KISS interface baudrate");
+
+void suspend_on_boot_callback();
+param_t suspend_on_boot;
+#define PARAMID_SUSPEND_ON_BOOT 23
+PARAM_DEFINE_STATIC_VMEM(PARAMID_SUSPEND_ON_BOOT, suspend_on_boot, PARAM_TYPE_UINT8, -1, 0, PM_SYSCONF, suspend_on_boot_callback, "", config, 0x100, "Whether to suspend A53 cores on boot");
 
 // Uploader Configuration (Stored in VMEM for persistence)
 // Index 0: Client Address (Set to 0 to Stop), Index 1: Server Address
-param_t mng_util;
+uint16_t _mng_util[2];
 #define PARAMID_MNG_UTIL 42
 // Note: Callback is triggered when the array is written. Logic inside filters for index 0 changes.
-PARAM_DEFINE_STATIC_VMEM(PARAMID_MNG_UTIL, mng_util, PARAM_TYPE_UINT16, 2, 4, PM_CONF, mng_util_callback, "", config, 0x102, "Uploader Config [Client, Server] (Set Client=0 to Kill)");
+PARAM_DEFINE_STATIC_VMEM(PARAMID_MNG_UTIL, mng_util, PARAM_TYPE_UINT16, sizeof(_mng_util) / sizeof(_mng_util[0]), sizeof(_mng_util[0]), PM_CONF, mng_util_callback, "", config, 0x102, "Uploader Config [Client, Server] (Set Client=0 to Kill)");
 
 // --- RAM PARAMETERS ---
 
@@ -157,6 +167,10 @@ void can_netmask_callback() {
     _can_netmask = param_get_uint16(&can_netmask);
 }
 
+void dipp_kiss_baudrate_callback() {
+    _dipp_kiss_baudrate = param_get_uint32(&dipp_kiss_baudrate);
+}
+
 void suspend_a53_callback() {
     system("echo N > /sys/module/printk/parameters/console_suspend");
     system("echo mem > /sys/power/state");
@@ -234,12 +248,22 @@ void mng_dipp_callback() {
             const char* interface_str = (interface_type == 1) ? "KISS" : "CAN";
             const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
 
-            if (strlen(vmem_path) > 0) {
-                sprintf(cmdbuf, "/usr/bin/dipp -i %s -p %s -a %u -v %s 2>&1",
-                        interface_str, device_str, param_val, vmem_path);
-            } else {
-                sprintf(cmdbuf, "/usr/bin/dipp -i %s -p %s -a %u 2>&1",
-                        interface_str, device_str, param_val);
+            if (interface_type == 1) { // KISS
+                if (strlen(vmem_path) > 0) {
+                    sprintf(cmdbuf, "/usr/bin/dipp -i %s -p %s -b %u -a %u -v %s 2>&1",
+                            interface_str, device_str, _dipp_kiss_baudrate, param_val, vmem_path);
+                } else {
+                    sprintf(cmdbuf, "/usr/bin/dipp -i %s -p %s -b %u -a %u 2>&1",
+                            interface_str, device_str, _dipp_kiss_baudrate, param_val);
+                }
+            } else { // CAN
+                if (strlen(vmem_path) > 0) {
+                    sprintf(cmdbuf, "/usr/bin/dipp -i %s -p %s -a %u -v %s 2>&1",
+                            interface_str, device_str, param_val, vmem_path);
+                } else {
+                    sprintf(cmdbuf, "/usr/bin/dipp -i %s -p %s -a %u 2>&1",
+                            interface_str, device_str, param_val);
+                }
             }
 
             csp_print("Starting: %s\n", cmdbuf);
@@ -258,17 +282,15 @@ void mng_util_callback() {
     // the first valid command (non-zero) will trigger the start.
     static uint16_t prev_client_addr = 0;
 
-    // Read the array data from the VMEM parameter
-    uint16_t cfg[2];
-    param_get_data(&mng_util, cfg, sizeof(cfg));
-
-    uint16_t new_client_addr = cfg[0];
-    uint16_t server_addr = cfg[1];
+    // Use param_get_uint16_array to access specific indices of the array
+    uint16_t new_client_addr = param_get_uint16_array(&mng_util, 0);
+    uint16_t server_addr = param_get_uint16_array(&mng_util, 1);
 
     // LOGIC: Only execute changes if the Client Address (the "switch") changes.
     // This allows updating the server address (index 1) without killing the process,
     // as long as index 0 remains the same.
     if (new_client_addr != prev_client_addr) {
+        csp_print("\nAddr Change: %u -> %u\n", prev_client_addr, new_client_addr);
         
         // 1. ALWAYS kill any existing process first to prevent duplicates
         // redirecting stderr to null to avoid noise if process isn't running
@@ -309,6 +331,7 @@ int main(int argc, char *argv[]) {
     uint16_t default_can_addr = 5421;
     uint16_t default_can_netmask = 8;
     uint16_t default_interface_type = 0;
+    uint32_t cli_baudrate = 0;
     char* vmem_dir = NULL;
     char vmem_full_path[512];
 
@@ -328,6 +351,8 @@ int main(int argc, char *argv[]) {
             default_can_netmask = (uint16_t)atoi(argv[i]);
         } else if (i == 3 && argv[i][0] != '-') {
             default_interface_type = (uint16_t)atoi(argv[i]);
+        } else if (i == 4 && argv[i][0] != '-') {
+            cli_baudrate = (uint32_t)atoi(argv[i]);
         }
     }
 
@@ -372,6 +397,20 @@ int main(int argc, char *argv[]) {
         param_set_uint16(&can_netmask, _can_netmask);
     }
 
+    // Initialize baudrate variable from VMEM
+    _dipp_kiss_baudrate = param_get_uint32(&dipp_kiss_baudrate);
+    
+    // Override from CLI if present
+    if (cli_baudrate > 0) {
+        _dipp_kiss_baudrate = cli_baudrate;
+        param_set_uint32(&dipp_kiss_baudrate, _dipp_kiss_baudrate);
+    }
+
+    if (_dipp_kiss_baudrate == 0) {
+        _dipp_kiss_baudrate = 115200; // Default
+        param_set_uint32(&dipp_kiss_baudrate, _dipp_kiss_baudrate);
+    }
+
     csp_iface_t* can_iface;
 
     if (default_interface_type == 0) {
@@ -383,7 +422,7 @@ int main(int argc, char *argv[]) {
         can_iface->name = "CAN";
     } else if (default_interface_type == 1) {
         csp_usart_conf_t conf = {
-            "/dev/ttymxc3", 115200, 8, 1, 0, 0
+            "/dev/ttymxc3", _dipp_kiss_baudrate, 8, 1, 0, 0
         };
         int error = csp_usart_open_and_add_kiss_interface(&conf, "KISS", &can_iface);
         if (error != 0) {
