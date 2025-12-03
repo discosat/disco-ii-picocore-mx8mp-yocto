@@ -285,7 +285,9 @@ void mng_util_callback() {
     // This allows updating the server address (index 1) without killing the process,
     // as long as index 0 remains the same.
     if (new_client_addr != prev_client_addr) {
-        csp_print("\nAddr Change: %u -> %u\n", prev_client_addr, new_client_addr);
+        csp_print("Addr Change: %u -> %u\n", prev_client_addr, new_client_addr);
+        csp_print("Values: %u -> %u\n", new_client_addr, server_addr);
+        
         
         // 1. ALWAYS kill any existing process first to prevent duplicates
         // redirecting stderr to null to avoid noise if process isn't running
@@ -299,9 +301,6 @@ void mng_util_callback() {
         else {
             uint8_t interface_type = param_get_uint8(&mng_util_interface);
             
-            // Sanity check server address. If 0, default to 4100
-            if (server_addr == 0) server_addr = 4100;
-
             const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
 
             char cmdbuf[256];
