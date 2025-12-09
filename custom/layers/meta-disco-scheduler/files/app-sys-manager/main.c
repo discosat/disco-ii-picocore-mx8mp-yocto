@@ -62,6 +62,19 @@ uint16_t _mng_util[2];
 // Note: Callback is triggered when the array is written. Logic inside filters for index 0 changes.
 PARAM_DEFINE_STATIC_VMEM(PARAMID_MNG_UTIL, mng_util, PARAM_TYPE_UINT16, sizeof(_mng_util) / sizeof(_mng_util[0]), sizeof(_mng_util[0]), PM_CONF, mng_util_callback, "", config, 0x102, "Uploader Config [Client, Server] (Set Client=0 to Kill)");
 
+param_t mng_dipp_vmem_path;
+param_t mng_camera_vmem_path;
+param_t a53_vmem_path;
+
+#define PARAMID_MNG_DIPP_VMEM_PATH 37
+#define PARAMID_MNG_CAMERA_VMEM_PATH 39
+#define PARAMID_A53_VMEM_PATH 45
+
+PARAM_DEFINE_STATIC_VMEM(PARAMID_MNG_DIPP_VMEM_PATH, mng_dipp_vmem_path, PARAM_TYPE_STRING, 128, 1, PM_SYSCONF | PM_READONLY, NULL, "", config, 0x200, "DIPP vmem directory path");
+PARAM_DEFINE_STATIC_VMEM(PARAMID_MNG_CAMERA_VMEM_PATH, mng_camera_vmem_path, PARAM_TYPE_STRING, 128, 1, PM_SYSCONF | PM_READONLY, NULL, "", config, 0x300, "Camera vmem directory path");
+PARAM_DEFINE_STATIC_VMEM(PARAMID_A53_VMEM_PATH, a53_vmem_path, PARAM_TYPE_STRING, 128, 1, PM_SYSCONF | PM_READONLY, NULL, "", config, 0x400, "A53 vmem directory path");
+
+
 // --- RAM PARAMETERS ---
 
 void suspend_a53_callback();
@@ -76,9 +89,7 @@ uint16_t _mng_camera_control;
 uint16_t _mng_dipp;
 uint8_t _switch_m7_bin;
 uint8_t _mng_dipp_interface;
-char _mng_dipp_vmem_path[128];
 uint8_t _mng_camera_interface;
-char _mng_camera_vmem_path[128];
 uint8_t _mng_util_interface; // 0=CAN, 1=KISS
 
 #define PARAMID_SUSPEND_A53 31
@@ -87,9 +98,7 @@ uint8_t _mng_util_interface; // 0=CAN, 1=KISS
 #define PARAMID_MNG_DIPP 34
 #define PARAMID_SWITCH_M7_BIN 35
 #define PARAMID_MNG_DIPP_INTERFACE 36
-#define PARAMID_MNG_DIPP_VMEM_PATH 37
 #define PARAMID_MNG_CAMERA_INTERFACE 38
-#define PARAMID_MNG_CAMERA_VMEM_PATH 39
 #define PARAMID_MNG_UTIL_INTERFACE 44
 
 PARAM_DEFINE_STATIC_RAM(PARAMID_SUSPEND_A53, suspend_a53, PARAM_TYPE_UINT8, -1, 0, PM_CONF, suspend_a53_callback, "", &_suspend_a53, "STOP A53 cores (suspend linux)");
@@ -98,9 +107,7 @@ PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_CAMERA_CONTROL, mng_camera_control, PARAM_TY
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_DIPP, mng_dipp, PARAM_TYPE_UINT16, -1, 0, PM_CONF, mng_dipp_callback, "", &_mng_dipp, "Start DIPP as this node number (0 kills it)");
 PARAM_DEFINE_STATIC_RAM(PARAMID_SWITCH_M7_BIN, switch_m7_bin, PARAM_TYPE_UINT8, -1, 0, PM_READONLY, NULL, "", &_switch_m7_bin, "Switch Cortex-M7 binaries"); // Disabled
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_DIPP_INTERFACE, mng_dipp_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_dipp_interface, "DIPP interface type (0=CAN, 1=KISS)");
-PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_DIPP_VMEM_PATH, mng_dipp_vmem_path, PARAM_TYPE_STRING, 128, 1, PM_CONF, NULL, "", &_mng_dipp_vmem_path, "DIPP vmem directory path");
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_CAMERA_INTERFACE, mng_camera_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_camera_interface, "Camera interface type (0=CAN, 1=KISS)");
-PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_CAMERA_VMEM_PATH, mng_camera_vmem_path, PARAM_TYPE_STRING, 128, 1, PM_CONF, NULL, "", &_mng_camera_vmem_path, "Camera vmem directory path");
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_UTIL_INTERFACE, mng_util_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_util_interface, "Uploader interface (0=CAN, 1=KISS)");
 
 
@@ -276,17 +283,18 @@ void mng_util_callback() {
     // Initialized to 0. Since we removed boot logic, this ensures
     // the first valid command (non-zero) will trigger the start.
     static uint16_t prev_client_addr = 0;
+    static uint16_t prev_server_addr = 0; // Track server too
 
     // Use param_get_uint16_array to access specific indices of the array
     uint16_t new_client_addr = param_get_uint16_array(&mng_util, 0);
-    uint16_t server_addr = param_get_uint16_array(&mng_util, 1);
+    uint16_t new_server_addr = param_get_uint16_array(&mng_util, 1);
 
-    // LOGIC: Only execute changes if the Client Address (the "switch") changes.
-    // This allows updating the server address (index 1) without killing the process,
-    // as long as index 0 remains the same.
+    // UPDATED LOGIC:
+    // Restart if:
+    // 1. Client Address changes (Toggle On/Off or change ID)
     if (new_client_addr != prev_client_addr) {
         
-        csp_print("\nAddr Change: C:%u->%u, S:%u\n", prev_client_addr, new_client_addr, server_addr);
+        csp_print("\nAddr Change: C:%u->%u, S:%u->%u\n", prev_client_addr, new_client_addr, prev_server_addr, new_server_addr);
         
         // 1. ALWAYS kill any existing process first
         system("pkill -f /usr/bin/upload_client > /dev/null 2>&1");
@@ -300,13 +308,13 @@ void mng_util_callback() {
             uint8_t interface_type = param_get_uint8(&mng_util_interface);
             
             // Sanity check server address
-            if (server_addr == 0) server_addr = 4100;
+            if (new_server_addr == 0) new_server_addr = 4100;
 
             const char* device_str = (interface_type == 1) ? "/dev/ttymcs3" : "can0";
 
             char cmdbuf[256];
             sprintf(cmdbuf, "/usr/bin/upload_client -c %s -a %u -s %u 2>&1", 
-                    device_str, new_client_addr, server_addr);
+                    device_str, new_client_addr, new_server_addr);
             
             csp_print("Starting: %s\n", cmdbuf);
 
@@ -316,8 +324,8 @@ void mng_util_callback() {
             }
         }
 
-        // 4. Update the tracker
         prev_client_addr = new_client_addr;
+        prev_server_addr = new_server_addr;
     }
 }
 
@@ -404,6 +412,26 @@ int main(int argc, char *argv[]) {
     if (_dipp_kiss_baudrate == 0) {
         _dipp_kiss_baudrate = 115200; // Default
         param_set_uint32(&dipp_kiss_baudrate, _dipp_kiss_baudrate);
+    }
+
+    char path_buf[128];
+    
+    // DIPP Path
+    param_get_string(&mng_dipp_vmem_path, path_buf, sizeof(path_buf));
+    if (strlen(path_buf) == 0) {
+        param_set_string(&mng_dipp_vmem_path, "/home/root/dippvmem", 128);
+    }
+
+    // Camera Path
+    param_get_string(&mng_camera_vmem_path, path_buf, sizeof(path_buf));
+    if (strlen(path_buf) == 0) {
+        param_set_string(&mng_camera_vmem_path, "/home/root/camctlvmem", 128);
+    }
+
+    // A53 Path
+    param_get_string(&a53_vmem_path, path_buf, sizeof(path_buf));
+    if (strlen(path_buf) == 0) {
+        param_set_string(&a53_vmem_path, "/home/root/a53vmem", 128);
     }
 
     csp_iface_t* can_iface;
