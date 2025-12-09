@@ -203,7 +203,7 @@ void mng_camera_control_callback() {
             param_get_string(&mng_camera_vmem_path, vmem_path, sizeof(vmem_path));
 
             const char* interface_str = (interface_type == 1) ? "kiss" : "can";
-            const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
+            const char* device_str = (interface_type == 1) ? "/dev/ttymcs3" : "can0";
 
             if (strlen(vmem_path) > 0) {
                 sprintf(cmdbuf, "/usr/bin/Disco2CameraControl -i %s -d %s -n %u -v %s 2>&1",
@@ -241,7 +241,7 @@ void mng_dipp_callback() {
             param_get_string(&mng_dipp_vmem_path, vmem_path, sizeof(vmem_path));
 
             const char* interface_str = (interface_type == 1) ? "KISS" : "CAN";
-            const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
+            const char* device_str = (interface_type == 1) ? "/dev/ttymcs3" : "can0";
 
             if (interface_type == 1) { // KISS
                 if (strlen(vmem_path) > 0) {
@@ -302,7 +302,7 @@ void mng_util_callback() {
             // Sanity check server address
             if (server_addr == 0) server_addr = 4100;
 
-            const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
+            const char* device_str = (interface_type == 1) ? "/dev/ttymcs3" : "can0";
 
             char cmdbuf[256];
             sprintf(cmdbuf, "/usr/bin/upload_client -c %s -a %u -s %u 2>&1", 
@@ -417,7 +417,7 @@ int main(int argc, char *argv[]) {
         can_iface->name = "CAN";
     } else if (default_interface_type == 1) {
         csp_usart_conf_t conf = {
-            "/dev/ttymxc3", _dipp_kiss_baudrate, 8, 1, 0, 0
+            "/dev/ttymcs3", _dipp_kiss_baudrate, 8, 1, 0, 0
         };
         int error = csp_usart_open_and_add_kiss_interface(&conf, "KISS", &can_iface);
         if (error != 0) {
