@@ -38,30 +38,46 @@ VMEM_DEFINE_FILE(config, "config", "sys-man-config.vmem", 1000);
 void can_addr_callback();
 void can_netmask_callback();
 void dipp_kiss_baudrate_callback();
+void dipp_kiss_netmask_callback();
 void mng_util_callback(); 
 
 uint16_t _can_addr;
 uint16_t _can_netmask;
 uint32_t _dipp_kiss_baudrate;
+uint16_t _dipp_kiss_netmask;
+
 param_t can_addr;
 param_t can_netmask;
 param_t dipp_kiss_baudrate;
+param_t dipp_kiss_netmask;
 csp_iface_t* can_iface;
 
 #define PARAMID_CAN_ADDR 21
 #define PARAMID_CAN_NETMASK 22
 #define PARAMID_DIPP_KISS_BAUDRATE 24
+#define PARAMID_DIPP_KISS_NETMASK 25
+
 PARAM_DEFINE_STATIC_VMEM(PARAMID_CAN_ADDR, can_addr, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, can_addr_callback, "", config, 0x10, "CAN interface address");
 PARAM_DEFINE_STATIC_VMEM(PARAMID_CAN_NETMASK, can_netmask, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, can_netmask_callback, "", config, 0x12, "CAN interface netmask");
 PARAM_DEFINE_STATIC_VMEM(PARAMID_DIPP_KISS_BAUDRATE, dipp_kiss_baudrate, PARAM_TYPE_UINT32, -1, 0, PM_SYSCONF, dipp_kiss_baudrate_callback, "", config, 0x14, "DIPP KISS interface baudrate");
+PARAM_DEFINE_STATIC_VMEM(PARAMID_DIPP_KISS_NETMASK, dipp_kiss_netmask, PARAM_TYPE_UINT16, -1, 0, PM_SYSCONF, dipp_kiss_netmask_callback, "", config, 0x18, "DIPP KISS interface netmask");
 
 // Uploader Configuration (Stored in VMEM for persistence)
-// Index 0: Client Address (Set to 0 to Stop), Index 1: Server Address
-uint16_t _mng_util[2];
-#define PARAMID_MNG_UTIL 42
-// Note: Callback is triggered when the array is written. Logic inside filters for index 0 changes.
-PARAM_DEFINE_STATIC_VMEM(PARAMID_MNG_UTIL, mng_util, PARAM_TYPE_UINT16, sizeof(_mng_util) / sizeof(_mng_util[0]), sizeof(_mng_util[0]), PM_CONF, mng_util_callback, "", config, 0x102, "Uploader Config [Client, Server] (Set Client=0 to Kill)");
+uint16_t _mng_util;       // Client Address (Active)
+uint16_t _mng_util_server; // Server Address (Passive)
 
+param_t mng_util;
+param_t mng_util_server;
+
+#define PARAMID_MNG_UTIL 42
+#define PARAMID_MNG_UTIL_SERVER 46
+
+// mng_util triggers the callback (Active)
+PARAM_DEFINE_STATIC_VMEM(PARAMID_MNG_UTIL, mng_util, PARAM_TYPE_UINT16, -1, 0, PM_CONF, mng_util_callback, "", config, 0x102, "Uploader Client Address (0=Stop)");
+// mng_util_server is passive (no callback)
+PARAM_DEFINE_STATIC_VMEM(PARAMID_MNG_UTIL_SERVER, mng_util_server, PARAM_TYPE_UINT16, -1, 0, PM_CONF, NULL, "", config, 0x104, "Uploader Server Address");
+
+// Persistent VMEM Paths (Stored in config VMEM)
 param_t mng_dipp_vmem_path;
 param_t mng_camera_vmem_path;
 param_t a53_vmem_path;
@@ -173,6 +189,10 @@ void dipp_kiss_baudrate_callback() {
     _dipp_kiss_baudrate = param_get_uint32(&dipp_kiss_baudrate);
 }
 
+void dipp_kiss_netmask_callback() {
+    _dipp_kiss_netmask = param_get_uint16(&dipp_kiss_netmask);
+}
+
 void suspend_a53_callback() {
     system("echo N > /sys/module/printk/parameters/console_suspend");
     system("echo mem > /sys/power/state");
@@ -207,6 +227,7 @@ void mng_camera_control_callback() {
             char cmdbuf[256];
             uint8_t interface_type = param_get_uint8(&mng_camera_interface);
             char vmem_path[128];
+            // Read from VMEM parameter
             param_get_string(&mng_camera_vmem_path, vmem_path, sizeof(vmem_path));
 
             const char* interface_str = (interface_type == 1) ? "kiss" : "can";
@@ -245,6 +266,7 @@ void mng_dipp_callback() {
             char cmdbuf[256];
             uint8_t interface_type = param_get_uint8(&mng_dipp_interface);
             char vmem_path[128];
+            // Read from VMEM parameter
             param_get_string(&mng_dipp_vmem_path, vmem_path, sizeof(vmem_path));
 
             const char* interface_str = (interface_type == 1) ? "KISS" : "CAN";
@@ -252,11 +274,11 @@ void mng_dipp_callback() {
 
             if (interface_type == 1) { // KISS
                 if (strlen(vmem_path) > 0) {
-                    sprintf(cmdbuf, "/usr/bin/dipp -i %s -p %s -b %u -a %u -v %s 2>&1",
-                            interface_str, device_str, _dipp_kiss_baudrate, param_val, vmem_path);
+                    sprintf(cmdbuf, "/usr/bin/dipp -i %s -p %s -b %u -m %u -a %u -v %s 2>&1",
+                            interface_str, device_str, _dipp_kiss_baudrate, _dipp_kiss_netmask, param_val, vmem_path);
                 } else {
-                    sprintf(cmdbuf, "/usr/bin/dipp -i %s -p %s -b %u -a %u 2>&1",
-                            interface_str, device_str, _dipp_kiss_baudrate, param_val);
+                    sprintf(cmdbuf, "/usr/bin/dipp -i %s -p %s -b %u -m %u -a %u 2>&1",
+                            interface_str, device_str, _dipp_kiss_baudrate, _dipp_kiss_netmask, param_val);
                 }
             } else { // CAN
                 if (strlen(vmem_path) > 0) {
@@ -279,22 +301,17 @@ void mng_dipp_callback() {
 }
 
 void mng_util_callback() {
-    // Static variable to track the previous Client Address.
-    // Initialized to 0. Since we removed boot logic, this ensures
-    // the first valid command (non-zero) will trigger the start.
     static uint16_t prev_client_addr = 0;
-    static uint16_t prev_server_addr = 0; // Track server too
 
-    // Use param_get_uint16_array to access specific indices of the array
-    uint16_t new_client_addr = param_get_uint16_array(&mng_util, 0);
-    uint16_t new_server_addr = param_get_uint16_array(&mng_util, 1);
+    // Use param_get_uint16 to access the separate parameters
+    uint16_t new_client_addr = param_get_uint16(&mng_util);
+    uint16_t server_addr = param_get_uint16(&mng_util_server);
 
-    // UPDATED LOGIC:
-    // Restart if:
-    // 1. Client Address changes (Toggle On/Off or change ID)
+    // LOGIC: Only execute changes if the Client Address changes.
+    // Changing Server Address is passive and won't trigger restart until client is toggled/changed.
     if (new_client_addr != prev_client_addr) {
         
-        csp_print("\nAddr Change: C:%u->%u, S:%u->%u\n", prev_client_addr, new_client_addr, prev_server_addr, new_server_addr);
+        csp_print("\nAddr Change: C:%u->%u, S:%u\n", prev_client_addr, new_client_addr, server_addr);
         
         // 1. ALWAYS kill any existing process first
         system("pkill -f /usr/bin/upload_client > /dev/null 2>&1");
@@ -308,13 +325,13 @@ void mng_util_callback() {
             uint8_t interface_type = param_get_uint8(&mng_util_interface);
             
             // Sanity check server address
-            if (new_server_addr == 0) new_server_addr = 4100;
+            if (server_addr == 0) server_addr = 4100;
 
             const char* device_str = (interface_type == 1) ? "/dev/ttymcs3" : "can0";
 
             char cmdbuf[256];
             sprintf(cmdbuf, "/usr/bin/upload_client -c %s -a %u -s %u 2>&1", 
-                    device_str, new_client_addr, new_server_addr);
+                    device_str, new_client_addr, server_addr);
             
             csp_print("Starting: %s\n", cmdbuf);
 
@@ -325,7 +342,6 @@ void mng_util_callback() {
         }
 
         prev_client_addr = new_client_addr;
-        prev_server_addr = new_server_addr;
     }
 }
 
@@ -400,10 +416,17 @@ int main(int argc, char *argv[]) {
         param_set_uint16(&can_netmask, _can_netmask);
     }
 
-    // Initialize baudrate variable from VMEM
+    // Initialize variables from VMEM
     _dipp_kiss_baudrate = param_get_uint32(&dipp_kiss_baudrate);
+    _dipp_kiss_netmask = param_get_uint16(&dipp_kiss_netmask);
     
-    // Override from CLI if present
+    // Default Netmask to 8 if not set
+    if (_dipp_kiss_netmask == 0) {
+        _dipp_kiss_netmask = 8;
+        param_set_uint16(&dipp_kiss_netmask, _dipp_kiss_netmask);
+    }
+
+    // Override baudrate from CLI if present
     if (cli_baudrate > 0) {
         _dipp_kiss_baudrate = cli_baudrate;
         param_set_uint32(&dipp_kiss_baudrate, _dipp_kiss_baudrate);
