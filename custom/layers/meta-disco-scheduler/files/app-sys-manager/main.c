@@ -210,7 +210,7 @@ void mng_camera_control_callback() {
             param_get_string(&mng_camera_vmem_path, vmem_path, sizeof(vmem_path));
 
             const char* interface_str = (interface_type == 1) ? "kiss" : "can";
-            const char* device_str = (interface_type == 1) ? "/dev/ttymcs3" : "can0";
+            const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
 
             if (strlen(vmem_path) > 0) {
                 sprintf(cmdbuf, "/usr/bin/Disco2CameraControl -i %s -d %s -n %u -v %s 2>&1",
