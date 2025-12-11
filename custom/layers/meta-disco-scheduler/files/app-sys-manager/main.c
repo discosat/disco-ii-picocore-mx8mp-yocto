@@ -77,6 +77,18 @@ PARAM_DEFINE_STATIC_VMEM(PARAMID_MNG_UTIL, mng_util, PARAM_TYPE_UINT16, -1, 0, P
 // mng_util_server is passive (no callback)
 PARAM_DEFINE_STATIC_VMEM(PARAMID_MNG_UTIL_SERVER, mng_util_server, PARAM_TYPE_UINT16, -1, 0, PM_CONF, NULL, "", config, 0x104, "Uploader Server Address");
 
+// --- RECOVERY UPLOADER CONFIGURATION ---
+void mng_util_rec_callback();
+uint16_t _mng_util_rec;        // Client Address (Active)
+uint16_t _mng_util_rec_server; // Server Address (Passive)
+param_t mng_util_rec;
+param_t mng_util_rec_server;
+#define PARAMID_MNG_UTIL_REC 47
+#define PARAMID_MNG_UTIL_REC_SERVER 48
+// mng_util_rec triggers the callback (Active)
+PARAM_DEFINE_STATIC_VMEM(PARAMID_MNG_UTIL_REC, mng_util_rec, PARAM_TYPE_UINT16, -1, 0, PM_CONF, mng_util_rec_callback, "", config, 0x106, "Recovery Client Address (0=Stop)");
+PARAM_DEFINE_STATIC_VMEM(PARAMID_MNG_UTIL_REC_SERVER, mng_util_rec_server, PARAM_TYPE_UINT16, -1, 0, PM_CONF, NULL, "", config, 0x108, "Recovery Server Address");
+
 // Persistent VMEM Paths (Stored in config VMEM)
 param_t mng_dipp_vmem_path;
 param_t mng_camera_vmem_path;
@@ -341,6 +353,41 @@ void mng_util_callback() {
             }
         }
 
+        prev_client_addr = new_client_addr;
+    }
+}
+
+void mng_util_rec_callback() {
+    static uint16_t prev_client_addr = 0;
+
+    uint16_t new_client_addr = param_get_uint16(&mng_util_rec);
+    uint16_t server_addr = param_get_uint16(&mng_util_rec_server);
+
+    // LOGIC: Restart only if Client Address (Active switch) changes
+    if (new_client_addr != prev_client_addr) {
+        
+        csp_print("\nREC Addr Change: C:%u->%u, S:%u\n", prev_client_addr, new_client_addr, server_addr);
+        
+        system("pkill -f /usr/bin/upload_client_rec > /dev/null 2>&1");
+        
+        if (new_client_addr == 0) {
+            csp_print("Stopping recovery uploader...\n");
+        } else {
+            uint8_t interface_type = param_get_uint8(&mng_util_interface);
+            if (server_addr == 0) server_addr = 4100;
+            const char* device_str = (interface_type == 1) ? "/dev/ttymcs3" : "can0";
+
+            char cmdbuf[256];
+            // Uses upload_client_rec binary
+            sprintf(cmdbuf, "/usr/bin/upload_client_rec -c %s -a %u -s %u 2>&1", 
+                    device_str, new_client_addr, server_addr);
+            
+            csp_print("Starting REC: %s\n", cmdbuf);
+            FILE *fp = popen(cmdbuf, "r");
+            if (fp == NULL) {
+                csp_print("Failed to start recovery uploader\n");
+            }
+        }
         prev_client_addr = new_client_addr;
     }
 }
