@@ -469,7 +469,7 @@ int main(int argc, char *argv[]) {
     
     // Default Netmask to 8 if not set
     if (_dipp_kiss_netmask == 0) {
-        _dipp_kiss_netmask = 8;
+        _dipp_kiss_netmask = 11;
         param_set_uint16(&dipp_kiss_netmask, _dipp_kiss_netmask);
     }
 
