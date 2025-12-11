@@ -29,6 +29,7 @@
 #include <csp/csp.h>
 #include <csp/csp_cmp.h>
 #include <csp/interfaces/csp_if_can.h>
+#include <csp/drivers/usart.h>
 
 #include <param/param.h>
 #include <param/param_server.h>
@@ -537,11 +538,11 @@ int main(int argc, char *argv[]) {
     _can_addr = param_get_uint16(&can_addr);
     _can_netmask = param_get_uint16(&can_netmask);
     if (_can_addr == 0) {
-        _can_addr = CAN_ADDR_DEFAULT;
+        _can_addr = default_can_addr;
         param_set_uint16(&can_addr, _can_addr);
     }
     if (_can_netmask == 0) {
-        _can_netmask = CAN_NETMASK_DEFAULT;
+        _can_netmask = default_can_netmask;
         param_set_uint16(&can_netmask, _can_netmask);
     }
 
