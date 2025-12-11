@@ -12,7 +12,7 @@ SRC_URI = "https://github.com/discosat/disco-ii-cortex-m7-scheduler.git;branch=m
 SRCREV = "33e5183c7641168f063771bd60a10a89907ea78d"
 SRCREV_libcsp = "7ba36fb06ec21a5ade61672c2a55e3917619f58f"
 SRCREV_libparam = "42b73b46d8347789e9b0b4452e3d9568b9f3ec4d"
-SRCREV_csp_proc = "78d4b0de7921b4e155452103b839c701c64c17ca"
+SRCREV_csp_proc = "1cd64b7040c96b34c0db62052b7fd87d186ffa09"
 
 SRC_URI[gcc-arm-none-eabi.sha256sum] = "97dbb4f019ad1650b732faffcc881689cedc14e2b7ee863d390e0a41ef16c9a3"
 
