@@ -422,7 +422,7 @@ void mng_util_callback() {
             // Sanity check server address
             if (server_addr == 0) server_addr = 4100;
 
-            const char* device_str = (interface_type == 1) ? "/dev/ttymcs3" : "can0";
+            const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
 
             char cmdbuf[256];
             sprintf(cmdbuf, "/usr/bin/upload_client -c %s -a %u -s %u 2>&1", 
