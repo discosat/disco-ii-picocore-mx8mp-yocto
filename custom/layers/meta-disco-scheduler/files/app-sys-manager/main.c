@@ -339,7 +339,7 @@ void mng_util_callback() {
             // Sanity check server address
             if (server_addr == 0) server_addr = 4100;
 
-            const char* device_str = (interface_type == 1) ? "/dev/ttymcs3" : "can0";
+            const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
 
             char cmdbuf[256];
             sprintf(cmdbuf, "/usr/bin/upload_client -c %s -a %u -s %u 2>&1", 
@@ -375,7 +375,7 @@ void mng_util_rec_callback() {
         } else {
             uint8_t interface_type = param_get_uint8(&mng_util_interface);
             if (server_addr == 0) server_addr = 4100;
-            const char* device_str = (interface_type == 1) ? "/dev/ttymcs3" : "can0";
+            const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
 
             char cmdbuf[256];
             // Uses upload_client_rec binary
@@ -515,7 +515,7 @@ int main(int argc, char *argv[]) {
         can_iface->name = "CAN";
     } else if (default_interface_type == 1) {
         csp_usart_conf_t conf = {
-            "/dev/ttymcs3", _dipp_kiss_baudrate, 8, 1, 0, 0
+            "/dev/ttymxc3", _dipp_kiss_baudrate, 8, 1, 0, 0
         };
         int error = csp_usart_open_and_add_kiss_interface(&conf, "KISS", &can_iface);
         if (error != 0) {
