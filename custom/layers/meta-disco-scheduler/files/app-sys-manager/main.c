@@ -364,7 +364,7 @@ void mng_dipp_callback() {
             param_get_string(&mng_dipp_vmem_path, vmem_path, sizeof(vmem_path));
 
             const char* interface_str = (interface_type == 1) ? "KISS" : "CAN";
-            const char* device_str = (interface_type == 1) ? "/dev/ttymcs3" : "can0";
+            const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
 
             if (interface_type == 1) { // KISS
                 if (strlen(vmem_path) > 0) {
