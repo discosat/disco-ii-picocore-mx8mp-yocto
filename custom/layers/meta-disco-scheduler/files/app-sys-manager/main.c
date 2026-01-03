@@ -117,6 +117,7 @@ void vimba_install_callback();
 void mng_camera_control_callback();
 void mng_dipp_callback();
 void switch_m7_bin_callback();
+void mng_satdeploy_callback();
 
 uint8_t _suspend_a53;
 uint8_t _vimba_install;
@@ -126,6 +127,8 @@ uint8_t _switch_m7_bin;
 uint8_t _mng_dipp_interface;
 uint8_t _mng_camera_interface;
 uint8_t _mng_util_interface; // 0=CAN, 1=KISS
+uint16_t _mng_satdeploy;
+uint8_t _mng_satdeploy_interface;
 
 #define PARAMID_SUSPEND_A53 31
 #define PARAMID_VIMBA_INSTALL 32
@@ -135,6 +138,8 @@ uint8_t _mng_util_interface; // 0=CAN, 1=KISS
 #define PARAMID_MNG_DIPP_INTERFACE 36
 #define PARAMID_MNG_CAMERA_INTERFACE 38
 #define PARAMID_MNG_UTIL_INTERFACE 44
+#define PARAMID_MNG_SATDEPLOY 55
+#define PARAMID_MNG_SATDEPLOY_INTERFACE 56
 
 PARAM_DEFINE_STATIC_RAM(PARAMID_SUSPEND_A53, suspend_a53, PARAM_TYPE_UINT8, -1, 0, PM_CONF, suspend_a53_callback, "", &_suspend_a53, "STOP A53 cores (suspend linux)");
 PARAM_DEFINE_STATIC_RAM(PARAMID_VIMBA_INSTALL, vimba_install, PARAM_TYPE_UINT8, -1, 0, PM_CONF, vimba_install_callback, "", &_vimba_install, "Install Vimba drivers");
@@ -144,6 +149,8 @@ PARAM_DEFINE_STATIC_RAM(PARAMID_SWITCH_M7_BIN, switch_m7_bin, PARAM_TYPE_UINT8, 
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_DIPP_INTERFACE, mng_dipp_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_dipp_interface, "DIPP interface type (0=CAN, 1=KISS)");
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_CAMERA_INTERFACE, mng_camera_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_camera_interface, "Camera interface type (0=CAN, 1=KISS)");
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_UTIL_INTERFACE, mng_util_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_util_interface, "Uploader interface (0=CAN, 1=KISS)");
+PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_SATDEPLOY, mng_satdeploy, PARAM_TYPE_UINT16, -1, 0, PM_CONF, mng_satdeploy_callback, "", &_mng_satdeploy, "Start satdeploy-agent as this node (0=stop)");
+PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_SATDEPLOY_INTERFACE, mng_satdeploy_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_satdeploy_interface, "Satdeploy interface (0=CAN, 1=KISS)");
 
 // Time sync parameters
 void time_sync_request_callback();
@@ -433,11 +440,11 @@ void mng_util_rec_callback() {
 
     // LOGIC: Restart only if Client Address (Active switch) changes
     if (new_client_addr != prev_client_addr) {
-        
+
         csp_print("\nREC Addr Change: C:%u->%u, S:%u\n", prev_client_addr, new_client_addr, server_addr);
-        
+
         system("pkill -f /usr/bin/upload_client_rec > /dev/null 2>&1");
-        
+
         if (new_client_addr == 0) {
             csp_print("Stopping recovery uploader...\n");
         } else {
@@ -447,9 +454,9 @@ void mng_util_rec_callback() {
 
             char cmdbuf[256];
             // Uses upload_client_rec binary
-            sprintf(cmdbuf, "/usr/bin/upload_client_rec -c %s -a %u -s %u 2>&1", 
+            sprintf(cmdbuf, "/usr/bin/upload_client_rec -c %s -a %u -s %u 2>&1",
                     device_str, new_client_addr, server_addr);
-            
+
             csp_print("Starting REC: %s\n", cmdbuf);
             FILE *fp = popen(cmdbuf, "r");
             if (fp == NULL) {
@@ -457,6 +464,37 @@ void mng_util_rec_callback() {
             }
         }
         prev_client_addr = new_client_addr;
+    }
+}
+
+void mng_satdeploy_callback() {
+    static uint16_t prev_val = 0;
+    uint16_t param_val = param_get_uint16(&mng_satdeploy);
+
+    if (param_val != prev_val) {
+        // 1. Kill any existing instance
+        system("pkill -f /opt/satdeploy/bin/satdeploy-agent > /dev/null 2>&1");
+
+        // 2. Check value
+        if (param_val == 0) {
+            csp_print("Stopping satdeploy-agent...\n");
+        } else {
+            char cmdbuf[256];
+            uint8_t interface_type = param_get_uint8(&mng_satdeploy_interface);
+
+            const char* interface_str = (interface_type == 1) ? "KISS" : "CAN";
+            const char* device_str = (interface_type == 1) ? "/dev/ttymxc3" : "can0";
+
+            sprintf(cmdbuf, "/opt/satdeploy/bin/satdeploy-agent -i %s -p %s -a %u 2>&1 &",
+                    interface_str, device_str, param_val);
+
+            csp_print("Starting: %s\n", cmdbuf);
+            int ret = system(cmdbuf);
+            if (ret != 0) {
+                csp_print("Failed to start satdeploy-agent (ret=%d)\n", ret);
+            }
+        }
+        prev_val = param_val;
     }
 }
 
