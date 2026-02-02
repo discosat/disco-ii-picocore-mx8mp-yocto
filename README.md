@@ -15,20 +15,102 @@ Transient errors are fairly likely, especially if using a weak internet connecti
 docker compose run -e BB_NUMBER_THREADS=4 yocto-build-service
 ```
 
-## Applications
+# Applications
 
 The system contains the following main applications.
 
-### Camera control
+## Camera control
 The camera control application is responsible for interfacing with the cameras aboard the satellite, acquiring images and forwarding them to the image processing pipeline. The details of this application can be found in the [meta-disco-camera](custom/layers/) layer.
 
-### Image processing pipeline (DIPP)
+## Image processing pipeline (DIPP)
 The image processing pipeline - also denoted DIPP - is responsible for processing the images acquired by the camera control application. It is configurable with different pipeline stages, allowing for a variety of image processing tasks to be performed. The details of this application can be found in the [meta-disco-pipeline](custom/layers/) layer.
 
-### A53 Application/System Manager
-The A53 Application/System Manager provides a remote interface to run select system calls on the Linux system, including starting and stopping the camera control and image processing pipeline applications, as well as suspending the system. The details of this application can be found in the [disco-app-sys-manager](custom/layers/meta-disco-scheduler/disco-app-sys-manager.bb) recipe.
+## A53 Application System Manager Documentation
 
-### Cortex-M7 binary
+**Recipe:** `disco-app-sys-manager` **Binary:** `a53-app-sys-manager` **Service:** `a53-app-sys-manager.service` 
+
+### Overview
+
+The **A53 Application System Manager** acts as the primary "init system" and remote interface for the Linux side of the PicoCoreMX8MP. It utilizes the CubeSat Space Protocol (CSP) to expose system controls, file paths, and process management hooks as network parameters, allowing remote operators (or the OBC) to control the Linux payload without direct shell access.
+
+### 1. Runtime Command-Line Arguments
+
+The application is launched via the `a53-app-sys-manager` binary. The arguments define the initial network configuration and storage location for persistent settings.
+
+**Usage:**
+
+```bash
+/usr/bin/a53-app-sys-manager <ADDR> <NETMASK> <IFACE_TYPE> <BAUDRATE> -v <VMEM_PATH>
+```
+
+| Position | Argument | Type | Description |
+| --- | --- | --- | --- |
+| **1** | `ADDR` | `uint16` | **Default CSP Address**: The node address for this application (e.g., `5421`). |
+| **2** | `NETMASK` | `uint16` | **Netmask**: The bit-width of the CSP network mask (e.g., `8`). |
+| **3** | `IFACE_TYPE` | `uint8` | **Interface Selector**: `0` = **SocketCAN** (`can0`), `1` = **KISS/UART** (`/dev/ttymxc3`). |
+| **4** | `BAUDRATE` | `uint32` | **Baud Rate**: Speed for KISS interface (ignored if using CAN). |
+| **Flag** | `-v` | `string` | **VMEM Directory**: Path to the directory where `sys-man-config.vmem` is stored (e.g., `/home/root/a53vmem`). |
+
+**Example (from systemd service):**
+
+```bash
+/usr/bin/a53-app-sys-manager 5421 8 0 100000 -v /home/root/a53vmem
+```
+
+### 2. CSP Parameter Reference
+
+The manager exposes two types of parameters: **RAM** (volatile, resets on reboot) and **VMEM** (persistent, stored in `sys-man-config.vmem`).
+
+### System Control Parameters (RAM)
+
+These parameters trigger immediate actions or control active processes.
+
+| ID | Name | Type | Description |
+| --- | --- | --- | --- |
+| **31** | `suspend_a53` | `UINT8` | **System Suspend**: Writing `1` triggers Linux suspend (`STOP` A53 cores). |
+| **32** | `vimba_install` | `UINT8` | **Driver Install**: Triggers the Vimba USBTL installation script. |
+| **33** | `mng_camera_control` | `UINT16` | **Camera Process**: Set to Node ID to start `Disco2CameraControl`. Set to `0` to kill it. |
+| **34** | `mng_dipp` | `UINT16` | **DIPP Process**: Set to Node ID to start the Image Processing Pipeline. Set to `0` to kill it. |
+| **35** | `switch_m7_bin` | `UINT8` | **M7 Switch**: Placeholder for switching Cortex-M7 binaries (Currently Disabled). |
+| **36** | `mng_dipp_interface` | `UINT8` | **DIPP Iface**: `0`=CAN, `1`=KISS. Controls how DIPP communicates. |
+| **38** | `mng_camera_interface` | `UINT8` | **Camera Iface**: `0`=CAN, `1`=KISS. Controls how Camera app communicates. |
+| **41** | `stdout_buf` | `STRING` | **Console Log**: Read-only buffer containing the last ~100 chars of application stdout. |
+| **44** | `mng_util_interface` | `UINT8` | **Uploader Iface**: `0`=CAN, `1`=KISS. Controls how the file uploader communicates. |
+| **52** | `time_sync_request` | `UINT16` | **Time Sync**: Set to a Node ID to request CSP CMP time from that node. |
+| **54** | `time_sync_last_error` | `UINT32` | **Sync Status**: Read-only error code from the last time sync attempt. |
+
+### Persistent Configuration (VMEM)
+
+These parameters are stored in `sys-man-config.vmem`.
+
+| ID | Name | Type | Description |
+| --- | --- | --- | --- |
+| **21** | `can_addr` | `UINT16` | Default CSP address loaded at boot. |
+| **22** | `can_netmask` | `UINT16` | Default CSP netmask loaded at boot. |
+| **24** | `dipp_kiss_baudrate` | `UINT32` | Baudrate configuration for DIPP KISS interface. |
+| **25** | `dipp_kiss_netmask` | `UINT16` | Netmask configuration for DIPP KISS interface. |
+| **37** | `mng_dipp_vmem_path` | `STRING` | Directory path for DIPP configuration files. |
+| **39** | `mng_camera_vmem_path` | `STRING` | Directory path for Camera configuration files. |
+| **42** | `mng_util` | `UINT16` | **Uploader Client**: Set address to start `upload_client`. Set `0` to stop. |
+| **46** | `mng_util_server` | `UINT16` | **Uploader Server**: Target server address for the uploader client. |
+| **47** | `mng_util_rec` | `UINT16` | **Recovery Client**: Set address to start `upload_client_rec`. Set `0` to stop. |
+| **48** | `mng_util_rec_server` | `UINT16` | **Recovery Server**: Target server address for the recovery uploader. |
+| **45** | `a53_vmem_path` | `STRING` | Directory path for general A53 VMEM files. |
+
+---
+
+### 3. Managed Processes
+
+The system manager wraps external binaries. When specific parameters are modified, the manager constructs command strings dynamically and executes them.
+
+| Managed Binary | Trigger Parameter | Interfaces Supported | Notes |
+| --- | --- | --- | --- |
+| **Disco2CameraControl** | `mng_camera_control` | CAN, KISS | Automatically kills previous instances before starting. Injects VMEM path and Node ID. |
+| **dipp** | `mng_dipp` | CAN, KISS | Image Processing Pipeline. Injects baudrate and netmask if KISS is selected. |
+| **upload_client** | `mng_util` | CAN, KISS | Standard file uploader. Starts when `mng_util` (Client Addr) is non-zero. |
+| **upload_client_rec** | `mng_util_rec` | CAN, KISS | Recovery uploader. Useful if the main uploader fails. Starts when `mng_util_rec` is non-zero. |
+
+## Cortex-M7 binary
 The Cortex-M7 is a low-power auxiliary core that is responsible for operations while the A53 cores are in a low-power state with Linux suspended. The binary for this core is built with the [disco-scheduler](custom/layers/meta-disco-scheduler/disco-scheduler.bb) recipe, and more details can be found in the [discosat/disco-ii-cortex-m7-scheduler](https://github.com/discosat/disco-ii-cortex-m7-scheduler) repository.
 
 ## Build environment and setup
