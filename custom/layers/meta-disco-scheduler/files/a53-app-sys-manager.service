@@ -3,7 +3,7 @@ Description=A53 Application System Manager
 
 [Service]
 Environment="GENICAM_GENTL64_PATH=:/etc/lib/VimbaX_2023-4-ARM64/cti"
-ExecStart=/usr/bin/a53-app-sys-manager 5475 10 0 100000 -v /home/root/a53vmem
+ExecStart=/usr/bin/a53-app-sys-manager 5475 8 0 100000 -v /home/root/a53vmem
 Restart=always
 
 [Install]
