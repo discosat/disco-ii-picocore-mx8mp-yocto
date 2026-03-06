@@ -1,22 +1,21 @@
-SUMMARY = "DISCO 2 Image processing pipeline"
-SECTION = "pipeline"
+DESCRIPTION = "DISCO-2 DTP Upload Client"
+SECTION = "upload-client"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-SRC_URI = "https://github.com/discosat/DIPP.git;branch=flight;rev=8a847f856cbed638347e632a46055d69cea5daa5"
+SRC_URI = "https://github.com/discosat/upload_sat-client.git;branch=flight;rev=21c1b6522f987d988157b53a4c249ab4debaff60"
 
 SRC_URI += " \
     https://github.com/spaceinventor/libcsp.git;destsuffix=git/lib/csp;name=libcsp;branch=master;rev=8cc13c663c6db1d333bd1af6546d1f7fc2599770 \
     https://github.com/discosat/libparam.git;destsuffix=git/lib/param;name=libparam;branch=master;rev=768970c6320a455250ddd88903bbd9f58db81216 \
     https://github.com/discosat/libdtp.git;destsuffix=git/lib/dtp;name=libdtp;branch=master;rev=504e2cd3bdffeec7b092895c564b6af947a6008f \
+    https://github.com/spaceinventor/slash.git;destsuffix=git/lib/slash;name=slash;branch=master;rev=7b0c33b39d8b73c861efd1ddbcd10c4fe69f2308 \
 "
-
-FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 S = "${WORKDIR}/git"
 
-DEPENDS = "curl openssl libsocketcan can-utils zeromq libyaml meson-native ninja-native pkgconfig python3-pip-native elfutils libbsd protobuf-c libjxl opencv"
-RDEPENDS:${PN} += "libcsp opencv libjxl"
+DEPENDS = "curl openssl libsocketcan can-utils zeromq meson-native ninja-native pkgconfig python3-pip-native elfutils libbsd protobuf-c"
+RDEPENDS:${PN} += "libcsp"
 
 inherit meson pkgconfig
 
@@ -44,7 +43,7 @@ do_configure() {
     export RANLIB="${TARGET_PREFIX}ranlib"
     export STRIP="${TARGET_PREFIX}strip"
 
-    export CFLAGS="${TARGET_CC_ARCH} -fstack-protector-strong -O2 -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Werror=format-security --sysroot=${STAGING_DIR_TARGET} -I${WORKDIR}/git/include"
+    export CFLAGS="${TARGET_CC_ARCH} -fstack-protector-strong -O2 -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Werror=format-security --sysroot=${STAGING_DIR_TARGET} -I${WORKDIR}/git/src/include"
     export CXXFLAGS="${CFLAGS}"
 
     meson setup ${S} ${B} --cross-file ${WORKDIR}/cross.txt -Dprefix=${D}${prefix}
@@ -52,10 +51,4 @@ do_configure() {
 
 do_install() {
     ninja -C ${B} install
-    install -d ${D}/usr/share/pipeline
-    install -m 0644 ${THISDIR}/files/modules/*.so ${D}/usr/share/pipeline
 }
-
-FILES:${PN} += "${libdir}/*"
-FILES:${PN} += "/usr/csp /usr/csp/csp_autoconfig.h"
-FILES_${PN} += "/usr/share/pipeline"
