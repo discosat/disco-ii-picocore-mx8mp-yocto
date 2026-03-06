@@ -7,8 +7,8 @@ SRC_URI = "https://github.com/spaceinventor/csh.git;branch=master;rev=6cc787e6b8
 
 SRC_URI += " \
     https://github.com/spaceinventor/libcsp.git;destsuffix=git/lib/csp;name=libcsp;branch=master;rev=7ba36fb06ec21a5ade61672c2a55e3917619f58f \
-    https://github.com/spaceinventor/libparam.git;destsuffix=git/lib/param;name=libparam;branch=master;rev=42b73b46d8347789e9b0b4452e3d9568b9f3ec4d \
-    https://github.com/spaceinventor/slash.git;destsuffix=git/lib/slash;name=slash;branch=master;rev=8858d39be041d2de4585dfee4dcd59b31eea7d1d \
+    https://github.com/spaceinventor/libparam.git;destsuffix=git/lib/param;name=libparam;branch=master;rev=a064863b278221d733b46d1eea18a7c7bda4846c \
+    https://github.com/spaceinventor/slash.git;destsuffix=git/lib/slash;name=slash;branch=master;rev=3f549de4966a867b1b98f56eab94854bbb92166d \
     https://github.com/yaml/libyaml.git;destsuffix=git/lib/yaml;name=yaml;branch=master;rev=840b65c40675e2d06bf40405ad3f12dec7f35923 \
 "
 
