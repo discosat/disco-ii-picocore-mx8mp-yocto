@@ -3,12 +3,12 @@ SECTION = "pipeline"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-SRC_URI = "https://github.com/discosat/DIPP.git;branch=flight;rev=8a847f856cbed638347e632a46055d69cea5daa5"
+SRC_URI = "git://github.com/discosat/DIPP.git;nobranch=1;rev=8a847f856cbed638347e632a46055d69cea5daa5;protocol=https"
 
 SRC_URI += " \
-    https://github.com/spaceinventor/libcsp.git;destsuffix=git/lib/csp;name=libcsp;branch=master;rev=8cc13c663c6db1d333bd1af6546d1f7fc2599770 \
-    https://github.com/discosat/libparam.git;destsuffix=git/lib/param;name=libparam;branch=master;rev=768970c6320a455250ddd88903bbd9f58db81216 \
-    https://github.com/discosat/libdtp.git;destsuffix=git/lib/dtp;name=libdtp;branch=master;rev=504e2cd3bdffeec7b092895c564b6af947a6008f \
+    git://github.com/spaceinventor/libcsp.git;destsuffix=git/lib/csp;name=libcsp;nobranch=1;rev=8cc13c663c6db1d333bd1af6546d1f7fc2599770;protocol=https \
+    git://github.com/discosat/libparam.git;destsuffix=git/lib/param;name=libparam;nobranch=1;rev=768970c6320a455250ddd88903bbd9f58db81216;protocol=https \
+    git://github.com/discosat/libdtp.git;destsuffix=git/lib/dtp;name=libdtp;nobranch=1;rev=504e2cd3bdffeec7b092895c564b6af947a6008f;protocol=https \
 "
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
@@ -58,4 +58,7 @@ do_install() {
 
 FILES:${PN} += "${libdir}/*"
 FILES:${PN} += "/usr/csp /usr/csp/csp_autoconfig.h"
-FILES_${PN} += "/usr/share/pipeline"
+FILES:${PN} += "/usr/share/pipeline"
+
+# Pipeline modules are loadable plugins in /usr/share/pipeline, not system libs
+INSANE_SKIP:${PN} += "libdir file-rdeps"

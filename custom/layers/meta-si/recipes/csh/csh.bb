@@ -3,13 +3,13 @@ SECTION = "csh"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://README.md;md5=6d605ad2c2fa2e72d8ad3a27b647ebcd"
 
-SRC_URI = "https://github.com/spaceinventor/csh.git;branch=master;rev=6cc787e6b8d1fb17b82bb4810e10d42770445f20"
+SRC_URI = "git://github.com/spaceinventor/csh.git;nobranch=1;rev=6cc787e6b8d1fb17b82bb4810e10d42770445f20;protocol=https"
 
 SRC_URI += " \
-    https://github.com/spaceinventor/libcsp.git;destsuffix=git/lib/csp;name=libcsp;branch=master;rev=7ba36fb06ec21a5ade61672c2a55e3917619f58f \
-    https://github.com/spaceinventor/libparam.git;destsuffix=git/lib/param;name=libparam;branch=master;rev=a064863b278221d733b46d1eea18a7c7bda4846c \
-    https://github.com/spaceinventor/slash.git;destsuffix=git/lib/slash;name=slash;branch=master;rev=3f549de4966a867b1b98f56eab94854bbb92166d \
-    https://github.com/yaml/libyaml.git;destsuffix=git/lib/yaml;name=yaml;branch=master;rev=840b65c40675e2d06bf40405ad3f12dec7f35923 \
+    git://github.com/spaceinventor/libcsp.git;destsuffix=git/lib/csp;name=libcsp;nobranch=1;rev=7ba36fb06ec21a5ade61672c2a55e3917619f58f;protocol=https \
+    git://github.com/spaceinventor/libparam.git;destsuffix=git/lib/param;name=libparam;nobranch=1;rev=a064863b278221d733b46d1eea18a7c7bda4846c;protocol=https \
+    git://github.com/spaceinventor/slash.git;destsuffix=git/lib/slash;name=slash;nobranch=1;rev=3f549de4966a867b1b98f56eab94854bbb92166d;protocol=https \
+    git://github.com/yaml/libyaml.git;destsuffix=git/lib/yaml;name=yaml;nobranch=1;rev=840b65c40675e2d06bf40405ad3f12dec7f35923;protocol=https \
 "
 
 S = "${WORKDIR}/git"
@@ -19,6 +19,8 @@ DEPENDS = "curl openssl libsocketcan can-utils zeromq libyaml meson-native ninja
 inherit meson pkgconfig
 
 do_configure:prepend() {
+    # Remove tests subdir from meson.build — gtest wrap requires internet, unavailable in container
+    sed -i "/subdir('tests')/d" ${S}/meson.build
     cat > ${WORKDIR}/cross.txt <<EOF
 [binaries]
 c = '${TARGET_PREFIX}gcc'
@@ -45,7 +47,7 @@ do_configure() {
     export CFLAGS="${TARGET_CC_ARCH} -fstack-protector-strong -O2 -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Werror=format-security --sysroot=${STAGING_DIR_TARGET} -I${WORKDIR}/git/include"
     export CXXFLAGS="${CFLAGS}"
 
-    meson setup ${S} ${B} --cross-file ${WORKDIR}/cross.txt -Dprefix=${D}${prefix}
+    meson setup ${S} ${B} --cross-file ${WORKDIR}/cross.txt -Dprefix=${D}${prefix} --wrap-mode=nodownload
 }
 
 do_install() {
