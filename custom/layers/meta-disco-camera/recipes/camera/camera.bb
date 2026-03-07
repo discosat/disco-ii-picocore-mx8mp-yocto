@@ -3,11 +3,11 @@ SECTION = "camera"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-SRC_URI = "git://github.com/discosat/DiscoCameraController.git;branch=flight;rev=ee983dd694723a9e314e3293137d735addd07c2c;protocol=https"
+SRC_URI = "git://github.com/discosat/DiscoCameraController.git;nobranch=1;rev=ee983dd694723a9e314e3293137d735addd07c2c;protocol=https"
 
 SRC_URI += " \
-    git://github.com/spaceinventor/libcsp.git;protocol=https;destsuffix=git/lib/csp;name=libcsp;branch=master;rev=6d0c670ac1c31b43083ab157cd2ed66a2ae8df35 \
-    git://github.com/discosat/libparam.git;protocol=https;destsuffix=git/lib/param;name=libparam;branch=master;rev=768970c6320a455250ddd88903bbd9f58db81216 \
+    git://github.com/spaceinventor/libcsp.git;protocol=https;destsuffix=git/lib/csp;name=libcsp;nobranch=1;rev=6d0c670ac1c31b43083ab157cd2ed66a2ae8df35 \
+    git://github.com/discosat/libparam.git;protocol=https;destsuffix=git/lib/param;name=libparam;nobranch=1;rev=768970c6320a455250ddd88903bbd9f58db81216 \
 "
 
 S = "${WORKDIR}/git"
