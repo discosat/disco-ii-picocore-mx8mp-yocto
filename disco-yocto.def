@@ -1,0 +1,145 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%files
+    setup-yocto /prep-build/setup-yocto
+    fs-release-manifest.xml /prep-build/fs-release-manifest.xml
+
+%post
+    # Use bash as default shell (matches Dockerfile)
+    rm /bin/sh && ln -s /bin/bash /bin/sh
+
+    export DEBIAN_FRONTEND=noninteractive
+
+    apt-get update && apt-get install -y \
+        git \
+        curl \
+        expect \
+        python3 \
+        python3-distutils \
+        gnupg \
+        bzip2 \
+        chrpath \
+        cpio \
+        cpp \
+        diffstat \
+        file \
+        g++ \
+        gawk \
+        gcc \
+        lz4 \
+        make \
+        binutils \
+        zstd \
+        wget \
+        locales \
+        sudo \
+        gcc-multilib \
+        build-essential \
+        socat \
+        python3-pip \
+        python3-pexpect \
+        xz-utils \
+        debianutils \
+        iputils-ping \
+        python3-git \
+        python3-jinja2 \
+        libegl1-mesa \
+        libsdl1.2-dev \
+        xterm \
+        python3-subunit \
+        mesa-common-dev \
+        libarchive-zip-perl \
+    && pip3 install pylint \
+    && ln -s /usr/bin/python3 /usr/bin/python \
+    && locale-gen en_US.UTF-8
+
+    # Set git credentials so setup-yocto skips interactive prompts
+    git config --global user.name "yocto-builder"
+    git config --global user.email "yocto@builder.local"
+
+    # Run setup-yocto (downloads Yocto BSP repos via Google repo tool)
+    cd /prep-build
+    chmod +x setup-yocto
+    echo -e "\n\ny\n" | ./setup-yocto disco-ii-yocto
+
+    # Accept NXP EULA via expect (same as Dockerfile)
+    cd /prep-build/disco-ii-yocto/yocto-fus
+    cat > setup.exp << 'EXPEOF'
+#!/usr/bin/expect
+set env(DISTRO) "fus-imx-wayland"
+set env(MACHINE) "fsimx8mp"
+spawn /bin/bash -c "source /prep-build/disco-ii-yocto/yocto-fus/fus-setup-release.sh"
+expect "Do you accept the EULA you just read? (y/n)"
+send "y\r"
+expect eof
+EXPEOF
+    chmod +x setup.exp && ./setup.exp
+
+    # Make prep-build accessible to any user at runtime
+    # (Apptainer runs as calling user, not as root)
+    chmod -R a+rX /prep-build
+
+%environment
+    export LANG=en_US.UTF-8
+    export LANGUAGE=en_US:en
+    export LC_ALL=en_US.UTF-8
+
+%runscript
+    set -e
+
+    ##### Prepare the build environment with customizations #####
+
+    if [ ! -d "/build/yocto-fus" ]; then
+        echo "First run: copying Yocto build tree to /build (this may take a while)..."
+        cp -rL /prep-build/disco-ii-yocto/yocto-fus /build/yocto-fus
+    fi
+
+    # conf
+    cp /custom/conf/* /build/yocto-fus/build-fsimx8mp-fus-imx-wayland/conf/
+
+    # layers
+    cp -rL /custom/layers/* /build/yocto-fus/sources/
+
+    # patches
+    cp /custom/patch/scons.bbclass /build/yocto-fus/sources/poky/meta/classes/scons.bbclass
+    # Fix kernel.bbclass: inline Python ${@oe.utils.conditional(...)} for vmlinux
+    # is not evaluated by this BitBake version, producing broken RDEPENDS.
+    sed -i '/RDEPENDS.*conditional.*vmlinux/d' \
+        /build/yocto-fus/sources/poky/meta/classes/kernel.bbclass
+    if [ -f "/build/yocto-fus/sources/meta-disco-camera/recipes/libcsp/libcsp.bb" ]; then
+        rm /build/yocto-fus/sources/meta-disco-camera/recipes/libcsp/libcsp.bb
+    fi
+    if [ -f "/build/yocto-fus/sources/meta-disco-pipeline/recipes/libcsp/libcsp.bb" ]; then
+        rm /build/yocto-fus/sources/meta-disco-pipeline/recipes/libcsp/libcsp.bb
+    fi
+
+    cd /build/yocto-fus
+    source /build/yocto-fus/setup-environment build-fsimx8mp-fus-imx-wayland
+
+    ##### Build the image #####
+
+    # Honor SLURM/env parallelism overrides if set
+    if [ -n "$BB_NUMBER_THREADS" ]; then
+        export BB_NUMBER_THREADS
+        echo "BB_NUMBER_THREADS=${BB_NUMBER_THREADS}"
+    fi
+    if [ -n "$PARALLEL_MAKE" ]; then
+        export PARALLEL_MAKE
+        echo "PARALLEL_MAKE=${PARALLEL_MAKE}"
+    fi
+
+    bitbake disco-fus-image
+
+    ##### Prepare deploy volume #####
+
+    cp -L /build/yocto-fus/build-fsimx8mp-fus-imx-wayland/tmp/deploy/images/fsimx8mp/picocoremx8mp.dtb /deploy/
+    cp -L /build/yocto-fus/build-fsimx8mp-fus-imx-wayland/tmp/deploy/images/fsimx8mp/emmc-fsimx8mp.sysimg /deploy/
+    cp -L /build/yocto-fus/build-fsimx8mp-fus-imx-wayland/tmp/deploy/images/fsimx8mp/Image-fsimx8mp /deploy/
+    cp -L /build/yocto-fus/build-fsimx8mp-fus-imx-wayland/tmp/deploy/images/fsimx8mp/update.scr /deploy/
+    cp -L /build/yocto-fus/build-fsimx8mp-fus-imx-wayland/tmp/deploy/images/fsimx8mp/uboot-fsimx8mp.fs /deploy/
+    cp /build/yocto-fus/sources/meta-fus/recipes-bsp/u-boot/files/nboot-disco-mod.fs.gz /deploy/ \
+        && gunzip -f /deploy/nboot-disco-mod.fs.gz \
+        && mv /deploy/nboot-disco-mod.fs /deploy/nboot-fsimx8mp.fs
+
+    echo "System files ready to flash onto a PicoCoreMX8MP are now available in the deploy directory"
