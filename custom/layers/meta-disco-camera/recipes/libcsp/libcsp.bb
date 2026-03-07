@@ -3,7 +3,7 @@ SECTION = "camera"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=2915dc85ab8fd26629e560d023ef175c"
 
-SRC_URI = "git://github.com/spaceinventor/libcsp.git;protocol=https;branch=master"
+SRC_URI = "git://github.com/spaceinventor/libcsp.git;protocol=https;nobranch=1"
 SRCREV = "7ba36fb06ec21a5ade61672c2a55e3917619f58f"
 
 S = "${WORKDIR}/git"
