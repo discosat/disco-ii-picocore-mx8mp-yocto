@@ -19,6 +19,11 @@ cp -rL /custom/layers/* /build/yocto-fus/sources/
 
 # patches
 cp /custom/patch/scons.bbclass /build/yocto-fus/sources/poky/meta/classes/scons.bbclass
+# Fix kernel.bbclass: inline Python ${@oe.utils.conditional(...)} for vmlinux
+# is not evaluated by this BitBake version, producing broken RDEPENDS.
+# Since KERNEL_IMAGETYPE="Image" (not vmlinux), this dependency is never needed.
+sed -i '/RDEPENDS.*conditional.*vmlinux/d' \
+    /build/yocto-fus/sources/poky/meta/classes/kernel.bbclass
 if [ -f "/build/yocto-fus/sources/meta-disco-camera/recipes/libcsp/libcsp.bb" ]; then rm /build/yocto-fus/sources/meta-disco-camera/recipes/libcsp/libcsp.bb; fi
 if [ -f "/build/yocto-fus/sources/meta-disco-pipeline/recipes/libcsp/libcsp.bb" ]; then rm /build/yocto-fus/sources/meta-disco-pipeline/recipes/libcsp/libcsp.bb; fi
 
@@ -26,6 +31,16 @@ cd /build/yocto-fus/
 source setup-environment build-fsimx8mp-fus-imx-wayland
 
 ##### Build the image #####
+
+# Honor SLURM/env parallelism overrides if set
+if [ -n "$BB_NUMBER_THREADS" ]; then
+    export BB_NUMBER_THREADS
+    echo "BB_NUMBER_THREADS=${BB_NUMBER_THREADS}"
+fi
+if [ -n "$PARALLEL_MAKE" ]; then
+    export PARALLEL_MAKE
+    echo "PARALLEL_MAKE=${PARALLEL_MAKE}"
+fi
 
 bitbake disco-fus-image
 
