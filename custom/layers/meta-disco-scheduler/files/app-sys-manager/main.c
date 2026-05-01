@@ -8,6 +8,10 @@
  * - Start/stop image processing (DIPP) process
  * - Start/stop Sat Uploader process
  * - Rebooting PicoCoreMX8MP
+ *  - run `reboot` command (affects Cortex-M7 application as well)
+ *
+ * - Time synchronization
+ *  - set `time_sync_request` to node address to sync time from
 */
 
 #include <pthread.h>
@@ -15,12 +19,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
-#include <stdint.h>
+#include <stdint.h> 
 #include <stdarg.h>
-#include <string.h>
 #include <sys/select.h>
+#include <time.h>
+#include <string.h>
 
 #include <csp/csp.h>
+#include <csp/csp_cmp.h>
 #include <csp/interfaces/csp_if_can.h>
 #include <csp/drivers/usart.h>
 
@@ -51,7 +57,8 @@ param_t can_netmask;
 param_t dipp_kiss_baudrate;
 param_t dipp_kiss_netmask;
 csp_iface_t* can_iface;
-
+#define CAN_ADDR_DEFAULT 21
+#define CAN_NETMASK_DEFAULT 8
 #define PARAMID_CAN_ADDR 21
 #define PARAMID_CAN_NETMASK 22
 #define PARAMID_DIPP_KISS_BAUDRATE 24
@@ -138,6 +145,14 @@ PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_DIPP_INTERFACE, mng_dipp_interface, PARAM_TY
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_CAMERA_INTERFACE, mng_camera_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_camera_interface, "Camera interface type (0=CAN, 1=KISS)");
 PARAM_DEFINE_STATIC_RAM(PARAMID_MNG_UTIL_INTERFACE, mng_util_interface, PARAM_TYPE_UINT8, -1, 0, PM_CONF, NULL, "", &_mng_util_interface, "Uploader interface (0=CAN, 1=KISS)");
 
+// Time sync parameters
+void time_sync_request_callback();
+uint16_t _time_sync_request = 0;
+uint32_t _time_sync_last_error = 0;
+#define PARAMID_TIME_SYNC_REQUEST 52
+#define PARAMID_TIME_SYNC_LAST_ERROR 54
+PARAM_DEFINE_STATIC_RAM(PARAMID_TIME_SYNC_REQUEST, time_sync_request, PARAM_TYPE_UINT16, -1, 0, PM_CONF, time_sync_request_callback, "", &_time_sync_request, "Trigger time sync (set to node address)");
+PARAM_DEFINE_STATIC_RAM(PARAMID_TIME_SYNC_LAST_ERROR, time_sync_last_error, PARAM_TYPE_UINT32, -1, 0, PM_READONLY, NULL, "", &_time_sync_last_error, "Last sync error code");
 
 // Circular buffer for standard output
 #define STDBUF_SIZE 110
@@ -187,6 +202,59 @@ uint32_t serial_get(void) {
         hash = 31 * hash + date_time[i];
     }
     return hash;
+}
+
+/**
+ * Perform time sync with configured node using CSP CMP clock protocol
+ * Returns 0 on success, error code on failure
+ */
+int do_time_sync(uint16_t node) {
+    if (node == 0) {
+        csp_print("Time sync disabled (node = 0)\n");
+        _time_sync_last_error = 1;
+        return -1;
+    }
+
+    csp_print("Requesting time from node %u...\n", node);
+
+    // Use CSP CMP (CSP Management Protocol) to get clock time
+    struct csp_cmp_message msg;
+    memset(&msg, 0, sizeof(msg));
+
+    int result = csp_cmp_clock(node, 1000, &msg);
+
+    if (result != CSP_ERR_NONE) {
+        csp_print("Time sync failed: CSP error %d\n", result);
+        _time_sync_last_error = result;
+        return -1;
+    }
+
+    // Set system time from received timestamp
+    struct timespec ts;
+    ts.tv_sec = msg.clock.tv_sec;
+    ts.tv_nsec = msg.clock.tv_nsec;
+    
+    if (clock_settime(CLOCK_REALTIME, &ts) != 0) {
+        csp_print("Failed to set system time:\n");
+        _time_sync_last_error = 255;
+        return -1;
+    }
+
+    _time_sync_last_error = 0;
+    
+    time_t now = ts.tv_sec;
+    struct tm *timeinfo = gmtime(&now);
+    char timebuf[64];
+    strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", timeinfo);
+    
+    csp_print("Time synchronized to %s UTC\n", timebuf);
+    
+    return 0;
+}
+
+void time_sync_request_callback() {
+    uint16_t node = param_get_uint16(&time_sync_request);
+    do_time_sync(node);
 }
 
 void can_addr_callback() {
@@ -406,7 +474,7 @@ int main(int argc, char *argv[]) {
         if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--vmem-path") == 0) {
             if (i + 1 < argc) {
                 vmem_dir = argv[i + 1];
-                i++; 
+                i++;
             } else {
                 fprintf(stderr, "Error: %s requires a directory path argument\n", argv[i]);
                 return 1;
@@ -531,6 +599,7 @@ int main(int argc, char *argv[]) {
     can_iface->is_default = true;
     can_iface->addr = _can_addr;
     can_iface->netmask = _can_netmask;
+    can_iface->name = "CAN";
 
     while (1) {
         sleep(1);
